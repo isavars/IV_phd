@@ -1,0 +1,3 @@
+[submodule "scaNpix-main/scaNpix"]
+	path = scaNpix-main/scaNpix
+	url = https://github.com/WillsCacucciLab/scaNpix.git
