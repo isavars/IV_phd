@@ -4,3 +4,6 @@
 [submodule "phy"]
 	path = phy
 	url = https://github.com/cortex-lab/phy.git
+[submodule "scaNpix"]
+	path = scaNpix
+	url = https://github.com/WillsCacucciLab/scaNpix.git
