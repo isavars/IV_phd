@@ -1,3 +1,6 @@
 [submodule "scaNpix-main/scaNpix"]
 	path = scaNpix-main/scaNpix
 	url = https://github.com/WillsCacucciLab/scaNpix.git
+[submodule "phy"]
+	path = phy
+	url = https://github.com/cortex-lab/phy.git
