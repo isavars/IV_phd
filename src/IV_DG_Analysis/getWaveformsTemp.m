@@ -153,8 +153,8 @@ defaultNWaves        = 250;       % this many waveforms/cluster (if [] we'll gra
 defaultNSamplesWf    = 69;        % this many samples/AP (40 = 1.3ms)
 defaultPropSampPre   = 0.4;       % relative amount of samples pre peak (0.375 @ 40 samples = 15 samples pre peak and 34 samples post peak
 defaultFs            = 48000;     % sampleing rate
-defaultGain          = 500;       % gain
-defaultBitResolution = 1.2/2^10;  % in V/bit
+defaultGain          = 8500;       % gain
+defaultBitResolution = 1.5/2^15;  % in V/bit
 defaultChanSpaceVert = 20;        % vertical channel spacing in um
 defaultApplyCAR      = false;     % do common average referencing
 defaultUnWhitedata   = false;     % unwhiten data - important if using KS2.5 or higher as drift corrected file is whitened  

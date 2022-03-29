@@ -3,16 +3,16 @@ function  getCellProperties_ks()
 %   Detailed explanation goes here
 
 sampleRate   = 48000;
-spikeTimes   = readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\spike_times.npy');
+spikeTimes   = readNPY('F:\r1040_surgery_CA1\spike_times.npy');
 spikeTimes   = double(spikeTimes) ./ sampleRate;
 % load cluster IDs
-clustIDs          = readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\spike_clusters.npy') + 1; % 0 based index
+clustIDs          = readNPY('F:\r1040_surgery_CA1\spike_clusters.npy') + 1; % 0 based index
  % now we need to remove bad clusters and spike times outside trial
 unClustIDs         = unique(clustIDs);
 loadFromPhy = 0;
     if loadFromPhy   == 1 
               % phy curated output - only load clusters labelled good
-              clu_info       = tdfread('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\cluster_group.tsv','tab');%LM had cluster_info.tsv here (KS2 probably doesn't mke this)
+              clu_info       = tdfread('F:\r1040_surgery_CA1\cluster_info.tsv','tab');
               goodLabel    = strcmp(cellstr(clu_info.KSLabel),'good');
               good_clusts    = clu_info.id(goodLabel) + 1;
               clu_Depth      = clu_info.depth(goodLabel);  %
@@ -22,16 +22,16 @@ loadFromPhy = 0;
     else
             % raw kilosort output - we'll take everything in this case and can
             % filter later if needed
-            ks_labels     = tdfread('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\cluster_KSLabel.tsv','tab'); %
+            ks_labels     = tdfread('F:\r1040_surgery_CA1\cluster_KSLabel.tsv','tab'); %
             cluLabel       = string(ks_labels.KSLabel); % this is either 'good' or 'mua'
              %     ind_good       = strcmp(cluLabel,'good');
              good_clusts    = ks_labels.cluster_id + 1; % ID for clusters also 0 based
             % get depth estimate for each cluster based on template ampl
               % distribution across probe
-                    templates          = readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\templates.npy');
-                    Winv               = readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\whitening_mat_inv.npy');
-                    chanPos            = readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\channel_positions.npy');
-                    chanMapKS          = double(readNPY('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\channel_map.npy')) + 1;  %
+                    templates          = readNPY('F:\r1040_surgery_CA1\templates.npy');
+                    Winv               = readNPY('F:\r1040_surgery_CA1\whitening_mat_inv.npy');
+                    chanPos            = readNPY('F:\r1040_surgery_CA1\channel_positions.npy');
+                    chanMapKS          = double(readNPY('F:\r1040_surgery_CA1\channel_map.npy')) + 1;  %
                     [clu_Depth,clu_Ch] = scanpix.npixUtils.getCluChDepthFromTemplates(templates, Winv, [chanMapKS(:) chanPos(:,2)]);
     end         
 
@@ -54,19 +54,24 @@ spikeTimesFin  = accumarray(clustIDs,spikeTimes,[max(unGoodClustIDs) 1],@(x) {x}
 
 %wf plot
 % 
- [waveforms, channels] = getWaveformsTemp('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\211122c_surgery.dat',spikeTimesFin(56), 16);
+[waveforms, channels] = getWaveformsTemp('F:\r1040_surgery_CA1\211122c_surgery.dat',spikeTimesFin(56), 21);
  hold all;
- figure()
- plot(waveforms{1}(:,:,29)','b'); % for clu56, channel 21 is the max channel! 
+
+%  figure()
+ plot(waveforms{1}(:,:,21)','b'); % for clu56, channel 21 is the max channel! 
+%  [waveforms, channels] = getWaveformsTemp('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_CA1\211122c_surgery.dat',spikeTimesFin(56), 16);
+%  hold all;
+%  figure()
+%  plot(waveforms{1}(:,:,29)','b'); % for clu56, channel 21 is the max channel! 
 
 
 %waveforms = scanpix.npixUtils.extract_waveforms('C:\Users\Isabella\Documents\Kilosort_output\Kilosort2\r1040_surgery_DG\temp_wh.dat',spikeTimesFin{1}, clu_Ch(1))
 
 %AC plot
-%     for it_clu = 1: length(spikeTimesFin)
-             figure()
-            [xc, lags]=spk_crosscorr(spikeTimesFin{56},'AC',0.001,0.1,301,'plot',gca);
-%     end
+% %     for it_clu = 1: length(spikeTimesFin)
+%              figure()
+%             [xc, lags]=spk_crosscorr(spikeTimesFin{38},'AC',0.001,0.1,301,'plot',gca);
+% %     end
 
 
 %     maxRowPerFig = 10;
