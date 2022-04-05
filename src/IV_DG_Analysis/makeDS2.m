@@ -25,21 +25,30 @@ eeg_output = eeg_output.*(1.5 ./ 128);
     absolute_eeg_output = abs(eeg_output);
     thresh_cross = absolute_eeg_output > thresh;
 
-% for it_eeg = 1:300000
-%     if (eeg_output(1,it_eeg) > thresh && eeg_output(1,it_eeg + 5) > thresh && eeg_output(1,it_eeg + 10) > thresh) || (eeg_output(1,it_eeg) < -thresh && eeg_output(1,it_eeg + 5) < -thresh && eeg_output(1,it_eeg + 10) < -thresh)
-%         thresh_cross = eeg_output(1,[it_eeg-14:it_eeg+17]);
-%         all_thresh_cross = [all_thresh_cross;thresh_cross];
-%     end
-%     
-% end 
+%make big plot with all the eegs arranged by depth     
+
+    hFig = gra_multiplot(32,1);
+    axArr = getappdata(hFig, 'axesHandles');
+
+
+
+    
+
+for it_eeg = 1:300000
+    if (eeg_output(1,it_eeg) > thresh && eeg_output(1,it_eeg + 5) > thresh && eeg_output(1,it_eeg + 10) > thresh) || (eeg_output(1,it_eeg) < -thresh && eeg_output(1,it_eeg + 5) < -thresh && eeg_output(1,it_eeg + 10) < -thresh)
+        thresh_cross = eeg_output(1,[it_eeg-14:it_eeg+17]);
+        all_thresh_cross = [all_thresh_cross;thresh_cross];
+    end
+    
+end 
 
 
 % 
 % all_thresh_cross = all_thresh_cross(1:20:end,:);
 % whos
 % 
-% for it_th = 1:length(all_thresh_cross)
-%     figure()
-%     plot (all_thresh_cross(it_th,:))
-% 
-% end
+for it_th = 1:length(all_thresh_cross)
+    figure()
+    plot (all_thresh_cross(it_th,:))
+
+end
