@@ -12,8 +12,8 @@
 % LM 2016 
 
 %% params
-defaultDir = 'S:\DBIO_TKFC_SKGTIVA\recording_data\Adults\';
-writeDir = 'S:\DBIO_TKFC_SKGTIVA\recording_data\Adults\';%'D:\tempKK\'; % data will be writen to writeDir\folderNames
+defaultDir = 'S:\DBIO_TKFC_SKGTIVA\recording_data\r1166\r1166_220624\tintFiles';
+writeDir = 'S:\DBIO_TKFC_SKGTIVA\recording_data\r1166\r1166_220624\tintFiles';%'D:\tempKK\'; % data will be writen to writeDir\folderNames
 nTetrodes = []; %if empty, will do all files, otherwise can also specify numbers as array (needs to be row vector)
 fancyKKpath = 'C:\Program Files\Axona\fancykk\';%'D:\fancykk\'; %path to fancy KK folder on disk
 TempFolderPath = 'C:\Users\Isabella\AppData\Local\Temp\'; %path to temp folder (usually hidden) in windows (updating username should do the trick)

@@ -2,9 +2,10 @@ function [cellInfo] = getCellInfo()
 
 %getCellInfo gets the tetrode number, cell number, age and rat ID from the
 %data file being used and produces a table with the information
-%
+%adding histology labels to this array - might have to turn it into a table
+%to append a column of strings? 
 
-    cellInfo = loadSpatData('cellID');
+    cellInfo = loadSpatData();
     
     tetNo_age=zeros(length(cellInfo), 4); %array to contain cell ID info including co-recorded cells 
     for jj= 1: length(cellInfo)

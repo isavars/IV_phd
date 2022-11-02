@@ -177,17 +177,17 @@ fclose(fid);
 fprintf('Finished concatonating .set file for %s\n##########\n',[dateStamp addStr]);
 clear setFileName tempJoinedSet timeInd lastTrialInd checkSet setFinal checkNums sFileText temp fid
 
-%% concat spike data 
-% use separate function
-if isempty(prms.nTets)
-    [~,Tet_iterator] = findDACQFiles( dataDir, fNames{1}, 'tet' );
-else
-    Tet_iterator = prms.nTets;
-end
-for k = Tet_iterator
-    concat_TetrodeTrialData( k ,'tint','dataRootDir',dataDir,'fNames',fNames,'writeDir',writeDir,'addStr',addStr,'leaveOverhang',prms.leaveOverhang);
-end
-fprintf('Finished concatonating tetrode data for %s\n##########\n',[dateStamp addStr]);
+% %% concat spike data 
+% % use separate function
+% if isempty(prms.nTets)
+%     [~,Tet_iterator] = findDACQFiles( dataDir, fNames{1}, 'tet' );
+% else
+%     Tet_iterator = prms.nTets;
+% end
+% for k = Tet_iterator
+%     concat_TetrodeTrialData( k ,'tint','dataRootDir',dataDir,'fNames',fNames,'writeDir',writeDir,'addStr',addStr,'leaveOverhang',prms.leaveOverhang);
+% end
+% fprintf('Finished concatonating tetrode data for %s\n##########\n',[dateStamp addStr]);
 
 %% pos file
 % posFiles = cell(length(fNames),1);

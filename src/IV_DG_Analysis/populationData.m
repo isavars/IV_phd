@@ -1,7 +1,6 @@
 function populationData()
 %makes summary plots for clustered data in bar charts. 
-%1. add adaptable indexes
-% 2. this one ois not working right now
+
 
 load ('allRats_spatData_CDB.mat', 'spatData')
 
@@ -30,9 +29,10 @@ load ('allRats_spatData_CDB.mat', 'spatData')
     FamIndT = [];     
     NovInd = [];
     famCount = 0;
+    numTrials = 5;
 
      for itCell= 1: length(meanRate)
-        for itTrial = 1: 5
+        for itTrial = 1: numTrials
             if contains(cast(spatData.env(itCell,itTrial),'char'),'fam')
                 FamIndT(itCell,itTrial) = itTrial;
                 famCount = famCount + 1;

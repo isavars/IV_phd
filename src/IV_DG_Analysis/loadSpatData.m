@@ -1,4 +1,4 @@
-function [cellID, meanRate, burstIndex, env, rMap, SI_spat, SpkTs, waveforms, nSpks] = loadSpatData(meanRate, burstIndex, env, rMap, SI_spat, SpkTs, waveforms,cellID, nSpks)
+function [cellID, meanRate, burstIndex, env, rMap, SI_spat, SpkTs, waveforms, nSpks] = loadSpatData()
 %loadSpatData Loads all the data from a chosen getSpatData .mat file and can be used by all
 %my figure making functions. keep working on this - for now it only does
 %the first output 
