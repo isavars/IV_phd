@@ -9,13 +9,15 @@ function [cell_layer]= histInfo()
 
     %get tet data from cell info
     cellInfo = getCellInfo();
-    rat = cellInfo(:,1);%[1099;222;1241;1242];%
-    tet = cellInfo(:,2);%[2;3;4;7]; %
+    rat = [1099;222;1241;1242];%cellInfo(:,1);%
+    tet = [2;3;4;7]; %cellInfo(:,2);%
 
     %loop through animal ids to see if they have histology and add the
     %histologylabel per tetrode to each cell (lengthwise on spat data)
+    %column one of cell layer contains the hitology label, column 2
+    %contains the cetainty raiting and column 3 contains the probe type. 
     
-    cell_layer = cell(length(rat),2);
+    cell_layer = cell(length(rat),3);
 
     for it_ID = 1:length(rat)
         if ismember(rat(it_ID), histology.rat_ID)
@@ -80,9 +82,10 @@ function [cell_layer]= histInfo()
             end
         else
             cell_layer{it_ID,1} = nan;
+            
 
         end
-     
+        cell_layer{it_ID,3} = histology.probe_type(rat_row);
 
     end
 

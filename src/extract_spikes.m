@@ -57,7 +57,7 @@ idx = 1;
 spike_val = nan(1,possible_count);
 
 % Get 9 samples before spike + spike/threshold crossing + 40 samples after
-while idx <= length(empty_matrix) %changing numel to length
+while idx <= numel(empty_matrix) %changing numel to length
     [n,m] = ind2sub(size(empty_matrix),idx);
     n = n - 4*(iteration-1);
     if m < 10
@@ -65,15 +65,15 @@ while idx <= length(empty_matrix) %changing numel to length
     elseif m >= 10 && empty_matrix(idx) > spikeThreshold && empty_matrix(idx) < upperThreshold % ignore 'spikes' bigger than upperThreshold uV
         spike_count = spike_count + 1; % Increment spike count 
         spike_val(spike_count) = empty_matrix(idx); % Get voltage value          
-        if (m - 6) <= 0 || (m + 26) > size(tetrode_data,2)
+        if (m - 10) <= 0 || (m + 40) > size(tetrode_data,2)
             spike_count = spike_count - 1;
             if spike_count > 0;  spike_val(spike_count) = nan; end 
-            if(m + 26) > size(tetrode_data,2); break; end
+            if(m + 39) > size(tetrode_data,2); break; end
         else
             % Check if spike is dodgy/noise (Baseline = 0)
             % Based on artefact rejection criteria from DACQ manual (page 44-45)
-            first_sample = tetrode_data(n,m-6);
-            last_20_samples = tetrode_data(n,m+6:1:m+25);
+            first_sample = tetrode_data(n,m-10);
+            last_20_samples = tetrode_data(n,m+10:1:m+39);
             % Reject if first sample well above or below baseline (>78% or <-78% spike)
             if first_sample > (spike_val(spike_count)*0.78) || first_sample < -1*(spike_val(spike_count)*0.78)
                  spike_count = spike_count - 1;
@@ -82,13 +82,14 @@ while idx <= length(empty_matrix) %changing numel to length
                  spike_count = spike_count - 1;
             else % Assume is a real spike
                 spike_mat(:,1,spike_count) = repelem(timestamps(idx),4); % Save spike timestamp for all channels
+                spike_mat(:,2:end,spike_count)= tetrode_data(:,m-10:1:m+39);
                 % Interpolate
-                interpolateSpike = tetrode_data(:,m-6:1:m+25);
-                samplePoints = 1:32;
-                queryPoints = linspace(1,32,50);
-                spike_mat(:,2:end,spike_count)= interp1(samplePoints,interpolateSpike',queryPoints,'linear')'; %wont add the voltages to the matrix without the interpolation - its not actually needed but it might not cause any harm.                          
+                %interpolateSpike = tetrode_data(:,m-6:1:m+25);
+                %samplePoints = 1:32;
+                %queryPoints = linspace(1,32,50);
+                %spike_mat(:,2:end,spike_count)= interp1(samplePoints,interpolateSpike',queryPoints,'linear')'; %wont add the voltages to the matrix without the interpolation - its not actually needed but it might not cause any harm.                          
             end
-            idx = sub2ind(size(empty_matrix),1,m+26); % Jump to end of 1ms window
+            idx = sub2ind(size(empty_matrix),1,m+40); % Jump to end of 1ms window
         end                   
     else
           idx = idx + 1;
