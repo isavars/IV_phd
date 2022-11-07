@@ -7,7 +7,7 @@ trialInfo.finalTrialName = name;
 trialInfo.writeDir = fileName.folder;
     
     %% Generate Tint .tet header
-    [genericTetHeader] = TintTetrode_header(duration);%replaced trialInfo,DACQinfo with duration
+    [genericTetHeader] = TintTetrode_header(trial_duration);%replaced trialInfo,DACQinfo with duration
     [tet1FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,1);
     [tet2FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,2);
     [tet3FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,3);
@@ -26,3 +26,7 @@ trialInfo.writeDir = fileName.folder;
     make_tint_file(tetrode6,tet6FileName,6,trialInfo);
     make_tint_file(tetrode7,tet7FileName,7,trialInfo);
     make_tint_file(tetrode8,tet8FileName,8,trialInfo);
+%     make_tint_file(tetrode9,tet1FileName,1,trialInfo); % removed ,DACQinfo
+%     make_tint_file(tetrode10,tet2FileName,2,trialInfo);
+%     make_tint_file(tetrode11,tet3FileName,3,trialInfo);
+%     make_tint_file(tetrode12,tet4FileName,4,trialInfo);

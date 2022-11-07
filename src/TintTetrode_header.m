@@ -2,11 +2,11 @@ function [genericTetHeader] = TintTetrode_header (duration) %TintTetrode_header(
 %% Amend tetrode header
 % TETfile_header = load('TetFileHeader.mat');
 % genericTetHeader = TETfile_header.tet_header;
-%duration = num2str(trialInfo.trial_duration*60); %change to duration coming from dat2volts
+% duration = num2str(trialInfo.trial_duration*60); %change to duration coming from dat2volts
 % duration = num2str(duration); %added this 
 
-genericTetHeader = {'trial_date',''; ...   %change to empty from trialInfo.hdrDate
-'trial_time',''; ... %change to empty from trialInfo.trial_time
+genericTetHeader = {'trial_date','Sunday, 20 Feb 2022'; ...   %change to empty from trialInfo.hdrDate
+'trial_time','18:48:22'; ... %change to empty from trialInfo.trial_time
 'experimenter','TOD'; ...
 'comments','Logger trial';...
 'duration',duration;...       

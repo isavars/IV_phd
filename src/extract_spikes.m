@@ -57,7 +57,7 @@ idx = 1;
 spike_val = nan(1,possible_count);
 
 % Get 9 samples before spike + spike/threshold crossing + 40 samples after
-while idx <= numel(empty_matrix) %changing numel to length
+while idx <= length(empty_matrix) %changing numel to length
     [n,m] = ind2sub(size(empty_matrix),idx);
     n = n - 4*(iteration-1);
     if m < 10

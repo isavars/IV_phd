@@ -1,6 +1,6 @@
 %% histInfo - labels each tetrode* with the most likely layer it was in based on histology
 % reads histology table info and cellID info from spatData and outputs a label: GCL, HL, CA3, GCL HL, 
-% HL CA3 or CA3 HL for each cell based on it's tetrode to be used by clustering function. 
+% HL CA3 or CA3 HL and a label for probe types for each cell based on it's tetrode to be used by any function. 
 % *labelling per tetrode for now as part of the SfN data push 
 
 function [cell_layer]= histInfo()

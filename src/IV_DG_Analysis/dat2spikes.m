@@ -16,11 +16,11 @@
 
     % Re-ordering based on CM32 Buzsaki 4x8 plugged in with NN and Omnetics on opposite sides 
     %voltages = [voltages(6,:);voltages(2,:);voltages(5,:);voltages(29,:);voltages(27,:);voltages(3,:);voltages(4,:);voltages(28,:);voltages(30,:);voltages(8,:);voltages(1,:);voltages(7,:);voltages(31,:);voltages(25,:);voltages(32,:);voltages(26,:);voltages(9,:);voltages(19,:);voltages(10,:);voltages(16,:);voltages(24,:);voltages(18,:);voltages(23,:);voltages(17,:);voltages(15,:);voltages(11,:);voltages(20,:);voltages(12,:);voltages(14,:);voltages(22,:);voltages(21,:);voltages(13,:)];
-    %opposite pluging option - incase the map is wong 
-    voltages = [voltages(22,:);voltages(18,:);voltages(21,:);voltages(13,:);voltages(11,:);voltages(19,:);voltages(20,:);voltages(12,:);voltages(14,:);voltages(24,:);voltages(17,:);voltages(23,:);voltages(15,:);voltages(9,:);voltages(16,:);voltages(10,:);voltages(25,:);voltages(3,:);voltages(26,:);voltages(32,:);voltages(8,:);voltages(2,:);voltages(7,:);voltages(1,:);voltages(31,:);voltages(27,:);voltages(4,:);voltages(28,:);voltages(30,:);voltages(6,:);voltages(5,:);voltages(29,:)];
+    %opposite pluging option - incase the map is wrong 
+%     voltages = [voltages(22,:);voltages(18,:);voltages(21,:);voltages(13,:);voltages(11,:);voltages(19,:);voltages(20,:);voltages(12,:);voltages(14,:);voltages(24,:);voltages(17,:);voltages(23,:);voltages(15,:);voltages(9,:);voltages(16,:);voltages(10,:);voltages(25,:);voltages(3,:);voltages(26,:);voltages(32,:);voltages(8,:);voltages(2,:);voltages(7,:);voltages(1,:);voltages(31,:);voltages(27,:);voltages(4,:);voltages(28,:);voltages(30,:);voltages(6,:);voltages(5,:);voltages(29,:)];
     
     % Re-ordering based on CM32 1x32 plugged in with NN and Omnetics on opposite sides
-    %voltages = [voltages(8,:);voltages(9,:);voltages(16,:);voltages(1,:);voltages(7,:);voltages(19,:);voltages(30,:);voltages(10,:);voltages(15,:);voltages(2,:);voltages(25,:);voltages(20,:);voltages(29,:);voltages(24,:);voltages(14,:);voltages(3,:);voltages(26,:);voltages(21,:);voltages(28,:);voltages(23,:);voltages(13,:);voltages(4,:);voltages(32,:);voltages(22,:);voltages(27,:);voltages(17,:);voltages(12,:);voltages(5,:);voltages(31,:);voltages(11,:);voltages(6,:);voltages(18,:)];
+    voltages = [voltages(8,:);voltages(9,:);voltages(16,:);voltages(1,:);voltages(7,:);voltages(19,:);voltages(30,:);voltages(10,:);voltages(15,:);voltages(2,:);voltages(25,:);voltages(20,:);voltages(29,:);voltages(24,:);voltages(14,:);voltages(3,:);voltages(26,:);voltages(21,:);voltages(28,:);voltages(23,:);voltages(13,:);voltages(4,:);voltages(32,:);voltages(22,:);voltages(27,:);voltages(17,:);voltages(12,:);voltages(5,:);voltages(31,:);voltages(11,:);voltages(6,:);voltages(18,:)];
     
     %filter the data with a butterworth filter 
     [b,a] = butter(3, [300 7000]/24000, 'bandpass');
