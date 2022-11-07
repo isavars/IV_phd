@@ -93,7 +93,6 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     [tetrode7,num_spikes(7)] =  cut_trial_to_time(tetrode7,trial_duration,num_spikes(7));
     [tetrode8,num_spikes(8)] =  cut_trial_to_time(tetrode8,trial_duration,num_spikes(8));
     
-    name = datfileName.name;
     name = extractBefore(name, ".");
     trialInfo.finalTrialName = name;
     trialInfo.writeDir = write_dir;
