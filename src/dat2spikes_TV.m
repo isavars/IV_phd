@@ -3,7 +3,6 @@
 % tint files. 
 
 % The input to this function is a trial directory, mapping
-addpath()
 function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     if nargin < 3
        write_dir = read_dir;
