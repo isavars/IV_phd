@@ -72,7 +72,7 @@ while thr_cr_idx <= length(thr_cr_numind)
         put_spk_data = tetrode_data( :, thr_cr_samp + (-10:39) );  % 'put_spk_data' = putative spike data, putative as hasn't undergone artifact filtering yet.
         
         % Get the necessary info for testing artifact rejection
-        [max_val,max_ind] = max(put_spk_data,[],'all');
+        [max_val,max_ind] = max(put_spk_data,[],'all', 'linear');
         [max_ch,~]        = ind2sub( size(put_spk_data), max_ind );
         first_samp        = put_spk_data( max_ch, 1);
         late_samps        = put_spk_data( max_ch, 41:50);
