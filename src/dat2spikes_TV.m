@@ -98,9 +98,12 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     trialInfo.writeDir = write_dir;
     
     setFileName = dir(strcat(read_dir, '/*.set'));
-    fopen([setFileName.name '.set']);
+    folder = setFileName.folder;
+    name = setFileName.name;
+    filepath = strcat(folder, '/', name);
+    fopen([filepath '.set']);
     % Read file %
-    [key value] = textread([setFileName.name], '%s %[^\n]');
+    [key value] = textread([filepath], '%s %[^\n]');
     txt = [cat(1,key) cat(1,value)];
     trialInfo.trial_time = getValue(txt, 'trial_time');
     trialInfo.trial_date = getValue(txt, 'trial_date');
