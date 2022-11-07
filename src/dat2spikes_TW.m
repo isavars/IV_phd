@@ -6,7 +6,8 @@
     tic;
 
     fileName = dir('**/*.dat');
-    openDat = fopen(fileName.name);
+    name = fileName.name;
+    openDat = fopen(name);
 
 %     voltages = fread(openDat, [64 48000*30], 'int16');   % TW - just use one variable for memory efficiency
 %     voltages = reshape(voltages, 64, []);
@@ -24,7 +25,7 @@
 %                       30 8 1 7     31 25 32 26 ...
 %                       9 19 10 16   24 18 23 17 ...
 %                       15 11 20 12  14 22 21 13];
-    %BUZ OPP plugTop
+%     BUZ OPP plugTop
 %     ch_reorder_ind = [11 15 12 20   22 14 13 21 ...
 %                       19 9 16 10   18 24 17 22 ...
 %                       8 30 7 1      25 31 26 32  ...
@@ -40,13 +41,33 @@
 %                   25 3 26 32      8 2 7 1  ...
 %                   31 27 4 28      30 6 5 29];
 
+%     %Tom's Map
+%         ch_reorder_ind = [1 2 6 7   8 9 15 16 ...
+%                       3 4 5 10   11 12 13 14 ...
+%                       19 20 21 22  23 28 29 30 ...  
+%                       17 18 24 25  26 27 31 32];
+%     %Tom's Map - reshuffled 
+%         ch_reorder_ind = [ 9 15 16 6  2 1 8 7 ...
+%                           4 12 5 11   3 13 10 14 ...
+%                           21 29 30 22   28 20 19 23 ...
+%                           17 27 18 24   26 32 31 25];
 
+    % Re-ordering based on CM32 1x32 OPP plugTop
+% 
+    ch_reorder_ind = [8 9 16 1   7 19 30 10 ...
+                  15 2 25 20   29 24 14 3 ...
+                  26 21 28 23      13 4 32 22  ...
+                  27 17 12 5      31 11 6 18];
 
-%     voltages = voltages( ch_reorder_ind, : );  % TW - same function but ch order easier to read like this.
+   % Re-ordering based on CM32 1x32 SAME plugTop
 
-    % Re-ordering based on CM32 1x32 plugged in with NN and Omnetics on opposite sides
-    voltages = [voltages(8,:);voltages(9,:);voltages(16,:);voltages(1,:);voltages(7,:);voltages(19,:);voltages(30,:);voltages(10,:);voltages(15,:);voltages(2,:);voltages(25,:);voltages(20,:);voltages(29,:);voltages(24,:);voltages(14,:);voltages(3,:);voltages(26,:);voltages(21,:);voltages(28,:);voltages(23,:);voltages(13,:);voltages(4,:);voltages(32,:);voltages(22,:);voltages(27,:);voltages(17,:);voltages(12,:);voltages(5,:);voltages(31,:);voltages(11,:);voltages(6,:);voltages(18,:)];
-    
+    ch_reorder_ind = [24 25 32 17   23 3 14 26 ...
+                    31 18 9 4   13 8 30 19 ...
+                    10 5 12 7   29 20 16 6 ...
+                    11 1 28 21  15 27 22 2];
+
+     voltages = voltages( ch_reorder_ind, : );  % TW - same function but ch order easier to read like this.
+
     %filter the data with a butterworth filter
     voltages = voltages.'; %filter works per column so it needs to be transposed 
     [b,a]    = butter(3, [300 7000]/24000, 'bandpass');
@@ -58,25 +79,6 @@
     tet_index = (1:4) + (0:4:28)';    
     %overlap tetrodes 
 %     tet_index = (1:4) + (2:8:30)';
-    
-%      voltages_1 = (voltages(:,[1:4]));
-%      voltages_2 = (voltages(:,[5:8]));
-%      voltages_3 = (voltages(:,[9:12]));
-%      voltages_4 = (voltages(:,[13:16]));
-%      voltages_5 = (voltages(:,[17:20]));
-%      voltages_6 = (voltages(:,[21:24]));
-%      voltages_7 = (voltages(:,[25:28]));
-%      voltages_8 = (voltages(:,[29:32]));
-    
-     % overlap tetrodes - just in case 
-    %  voltages_9 = (voltages(:,[3:6]));
-    %  voltages_10 = (voltages(:,[11:14]));
-    %  voltages_11 = (voltages(:,[19:22]));
-    %  voltages_12 = (voltages(:,[27:30]));
-    
-    %create a cell array that is made up of voltages grouped by tetrodes 
-    
-%     all_tets= {voltages_1,voltages_2,voltages_3,voltages_4,voltages_5,voltages_6,voltages_7,voltages_8}; %voltages_9,voltages_10,voltages_11,voltages_12};
     
     
     % run voltage traces through extract_spikes
