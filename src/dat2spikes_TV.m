@@ -22,7 +22,7 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     voltages = voltages - median(voltages,1);
     
     % Re-order channels
-    ch_reorder_ind = mapping;
+    ch_reorder_ind = load(mapping).a; % variable named 'a' is totally arbitrary and can be changed in the future.
     voltages = voltages( ch_reorder_ind, : );  % TW - same function but ch order easier to read like this.
     
     %filter the data with a butterworth filter
