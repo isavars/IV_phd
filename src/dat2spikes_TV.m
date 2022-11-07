@@ -10,8 +10,9 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
 
     tic;
     datFileName = dir(strcat(read_dir, '/*.dat'));
+    folder = datFileName.folder;
     name = datFileName.name;
-    openDat = fopen(name);
+    openDat = fopen(strcat(folder,'/',name));
     
     
     voltages = fread(openDat, [32 inf], '32*int16', 64);   % When using 'skip' format, read-in multiplier specifies N read-in format chunks, skip multiplier specifies N bytes.   
