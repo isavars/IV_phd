@@ -8,8 +8,9 @@ trialInfo.writeDir = fileName.folder;
 
 setFileName = dir('**/*.set');
 fopen([setFileName.name '.set']);
+setName =setFileName.name;
 % Read file %
-[key value] = textread([setFileName.name], '%s %[^\n]');
+[key value] = textread([setName], '%s %[^\n]');
 txt = [cat(1,key) cat(1,value)];
 trialInfo.trial_time = getValue(txt, 'trial_time');
 trialInfo.trial_date = getValue(txt, 'trial_date');
