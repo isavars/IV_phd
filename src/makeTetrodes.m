@@ -5,9 +5,18 @@ name = fileName.name;
 name = extractBefore(name, ".");
 trialInfo.finalTrialName = name;
 trialInfo.writeDir = fileName.folder;
+
+setFileName = dir('**/*.set');
+fopen([setFileName.name '.set']);
+% Read file %
+[key value] = textread([setFileName.name], '%s %[^\n]');
+txt = [cat(1,key) cat(1,value)];
+trialInfo.trial_time = getValue(txt, 'trial_time');
+trialInfo.trial_date = getValue(txt, 'trial_date');
+trialInfo.duration = getValue(txt, 'duration');
     
     %% Generate Tint .tet header
-    [genericTetHeader] = TintTetrode_header(trial_duration);%replaced trialInfo,DACQinfo with duration
+    [genericTetHeader] = TintTetrode_header(trialInfo);%replaced trialInfo,DACQinfo with duration
     [tet1FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,1);
     [tet2FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,2);
     [tet3FileName] = specificTetHeader(genericTetHeader,trialInfo,num_spikes,3);
