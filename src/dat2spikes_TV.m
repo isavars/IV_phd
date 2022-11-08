@@ -3,15 +3,15 @@
 % tint files. 
 
 % The input to this function is a trial directory, mapping
-function [] = dat2spikes_TV(read_dir, mapping, write_dir)
-    if nargin < 3
+function [] = dat2spikes_TV(read_dir, mapping, trial_num, write_dir)
+    if nargin < 4
        write_dir = read_dir;
     end
 
     tic;
     datFileName = dir(strcat(read_dir, '/*.dat'));
     folder = datFileName.folder;
-    name = datFileName.name;
+    name = datFileName(trial_num).name;
     openDat = fopen(strcat(folder,'/',name));
     
     
@@ -43,7 +43,7 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     % be used by makeTetrodes
         
     num_tets = size(tet_index,1); % chance to 12 if you do the overlap
-    name = datFileName.name;
+%     name = datFileName(trial_num).name;
     fileNames = {extractBefore(name, ".")};
     new_tets = cell(num_tets,numel(fileNames)); %ive changed these to 8 because I think they correspond to number of tetrodes. 
     num_spikes = cell(num_tets,numel(fileNames));
@@ -95,11 +95,12 @@ function [] = dat2spikes_TV(read_dir, mapping, write_dir)
     
     name = extractBefore(name, ".");
     trialInfo.finalTrialName = name;
+    display(write_dir)
     trialInfo.writeDir = write_dir;
     
     setFileName = dir(strcat(read_dir, '/*.set'));
     folder = setFileName.folder;
-    name = setFileName.name;
+    name = setFileName(trial_num).name;
     filepath = strcat(folder, '/', name);
     fopen([filepath '.set']);
     % Read file %
