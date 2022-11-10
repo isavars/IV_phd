@@ -1,4 +1,4 @@
-function rateMapsFigure_SfN ()
+function rateMapsFigure_SfN (spatData)
 %1. makes an array of axes to contain rate maps, autocorrelograms and waveforms of cells from my defined clusters
 %2. organized from most spatial to least spatial 
 %3. mantaining a number order (Labels)from the original table 
@@ -7,7 +7,7 @@ function rateMapsFigure_SfN ()
 % add indecexes . Also when picking which rate map to delete - i
 % could just do this on illustrator. 
 
-load ('spatData_r1099.mat', 'spatData')
+%load ('spatData_r1099.mat', 'spatData')
 
 % obtaining variables from spatData Table (I want to replace this with a
 % separate function called loadSpatData)
