@@ -3,7 +3,7 @@ function [cellID, meanRate, burstIndex, env, rMap, SI_spat, SpkTs, waveforms, nS
 %my figure making functions. keep working on this - for now it only does
 %the first output 
 
- load ('allRats_spatData_CDB.mat', 'spatData')
+ load ('spatData_r1099.mat', 'spatData')
 
 % obtaining variables from spatData Table 
     

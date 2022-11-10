@@ -15,19 +15,19 @@ function [cellInfo] = getCellInfo()
         if isnan(tetNo_age(jj,2))
             tetNo_age(jj,2)=  double(extractBetween(newCellInfo,'t t','c'));%for adult trials
         end
-%         tetNo_age(jj,3)= double(extractBetween(newCellInfo,'P','t')); % age (40 for adults)40; %
-%         if isnan(tetNo_age(jj,3))
-%             tetNo_age(jj,3)=  double(extractBetween(newCellInfo,'P','_'));%ages 40; %
-%         end
-        tetNo_age(jj,3)= double(extractBetween(newCellInfo,'r','_'));% age (this is only a temporary solution that works for this data set FIX IT!)
-        if tetNo_age(jj,3) < 900
-            tetNo_age(jj,3)= double(extractBetween(newCellInfo,'P','t'));
-            if isnan(tetNo_age(jj,3))
-                tetNo_age(jj,3)=  double(extractBetween(newCellInfo,'P','_'));%ages 40; %
-            end
-        else
-            tetNo_age(jj,3) = double(extractBetween(newCellInfo,'_','_'));
+        tetNo_age(jj,3)= double(extractBetween(newCellInfo,'P','t')); % age (40 for adults)40; %
+        if isnan(tetNo_age(jj,3))
+            tetNo_age(jj,3)=  double(extractBetween(newCellInfo,'P','_'));%ages 40; %
         end
+%         tetNo_age(jj,3)= double(extractBetween(newCellInfo,'r','_'));% age (this is only a temporary solution that works for this data set FIX IT!)
+%         if tetNo_age(jj,3) < 900
+%             tetNo_age(jj,3)= double(extractBetween(newCellInfo,'P','t'));
+%             if isnan(tetNo_age(jj,3))
+%                 tetNo_age(jj,3)=  double(extractBetween(newCellInfo,'P','_'));%ages 40; %
+%             end
+%         else
+%             tetNo_age(jj,3) = double(extractBetween(newCellInfo,'_','_'));
+%         end
         tetNo_age(jj,4) = double(extractAfter(newCellInfo,'c')); %co-recorded cells
     end
     

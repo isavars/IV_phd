@@ -19,7 +19,7 @@ end
 
 
 % Find Fields %
-bwMap = map >= ( nanmax(map(:))*prms.rateThr );
+bwMap = map >= (max(map(:))*prms.rateThr);
 % bwMap = map >= 1;
 fieldLabels = bwlabel(bwMap,4);
 labelList = setdiff(unique(fieldLabels),0);
@@ -45,7 +45,7 @@ if sum(fieldsForDm(:)) == 0
     return
 end
 % Calculate Cm, the maximum coverage of a field over the walls of the environment %
-Cm = nanmax(coverageOnFourWalls(:)) / size(map,1);
+Cm = max(coverageOnFourWalls(:)) / size(map,1);
 
 % Calculate Dm, the mean distance to the wall of all field pixels, weighted by firing rate %
 % Make a matrix showing distance to nearest wall %

@@ -35,7 +35,7 @@ end
 
 % Mean Normalise %
 if opt.meanNorm
-    eegSamp = eegSamp - nanmean(eegSamp);
+    eegSamp = eegSamp - mean(eegSamp,'omitnan');
 end
 
 % Remove NaNs that might be present %

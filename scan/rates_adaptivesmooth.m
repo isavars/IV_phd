@@ -102,7 +102,7 @@ smoothedRate=smoothedSpk./smoothedPos;
 smoothedRate(pos==0)=nan;
 smoothedPos(pos==0)=nan;
 smoothedSpk(pos==0)=nan;
-medFiltRad = nanmedian(radiiUsedList);
+medFiltRad = median(radiiUsedList, 'omitnan');
 
 % Report radii sizes %
 if 0

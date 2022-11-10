@@ -1,4 +1,4 @@
-function [cluster1,cluster2,cluster3,cluster4] = makeClusters(meanRate, burstIndex)
+function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
 %CLUSTER makes clusters based on meanRate and burstIndex that can then be
 %called by the other functions -- plan is to get this to use histology
 %labels also - for now as a pre threshold but later it should be informing
@@ -6,7 +6,7 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(meanRate, burstInd
 %should include CA3 cells also for now im only using data sets that were
 %definitley not CA3.
 
-load ('allRats_spatData_CDB.mat', 'spatData')
+%load ('allRats_spatData_CDB.mat', 'spatData')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -84,7 +84,7 @@ load ('allRats_spatData_CDB.mat', 'spatData')
     interneuron_cluster = []; %filter out super high firing rate from all the clusters to make this one 
 
     for itH = 1: length(cell_layer)
-        if (meanMeanRate(itH) >= 1) && (meanBurstIndex(itH) <= 0.05) %interneurons
+        if (meanMeanRate(itH) >= 1) && (meanBurstIndex(itH) <= 0.05) %interneurons - THIS LOOKS WRONG look up the knierim cuttoffs 
             interneuron_cluster = [interneuron_cluster;itH];
         else
             if strcmp(cell_layer{itH,1}, "GCL") 
@@ -98,25 +98,30 @@ load ('allRats_spatData_CDB.mat', 'spatData')
         end
     end
 
+    cluster1 = interneuron_cluster;
+    cluster2 = granule_cluster;
+    cluster3 = mossy_cluster;
+    cluster4 = pyramidal_cluster;
+
     
-    %make clusters based on firing properties 
-
-    cluster1 = [];
-    cluster2 = [];
-    cluster3 = [];
-    cluster4 = [];
-
-    for jj = 1: length(meanMeanRate)
-        if  (meanMeanRate(jj) >= 1) && (meanBurstIndex(jj) <= 0.05) %interneurons
-            cluster1 = [cluster1; jj];
-        elseif  (rateChange(jj) <= 0.3) && (meanMeanRate(jj) >= 0.01) && (meanMeanRate(jj) <= 1.5)  && (meanBurstIndex(jj) >= 0.01) && (meanBurstIndex(jj) < 0.15) %potential granule cells
-            cluster2 = [cluster2; jj];
-        elseif (meanMeanRate(jj) >= 0.02) && (meanBurstIndex(jj) >= 0.15) %potential mossy cells
-            cluster3 = [cluster3; jj];   
-        else 
-            cluster4 = [cluster4; jj];
-        end    
-    end 
+%     %make clusters based on firing properties 
+% 
+%     cluster1 = [];
+%     cluster2 = [];
+%     cluster3 = [];
+%     cluster4 = [];
+% 
+%     for jj = 1: length(meanMeanRate)
+%         if  (meanMeanRate(jj) >= 1.5) && (meanBurstIndex(jj) <= 0.05) %interneurons
+%             cluster1 = [cluster1; jj];
+%         elseif  (rateChange(jj) <= 0.3) && (meanMeanRate(jj) >= 0.01) && (meanMeanRate(jj) <= 1.5)  && (meanBurstIndex(jj) >= 0.01) && (meanBurstIndex(jj) < 0.15) %potential granule cells
+%             cluster2 = [cluster2; jj];
+%         elseif (meanMeanRate(jj) >= 0.02) && (meanBurstIndex(jj) >= 0.15) %potential mossy cells
+%             cluster3 = [cluster3; jj];   
+%         else 
+%             cluster4 = [cluster4; jj];
+%         end    
+%     end 
 
 end
 

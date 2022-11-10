@@ -11,7 +11,7 @@ function rateOverlap()
 % load data as input select the .mat file with the data you want and run
 % with spatData as the input. 
 
-load ('allRats_DGCA3_spatData.mat', 'spatData')
+load ('spatData_r1099.mat', 'spatData')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -19,9 +19,9 @@ load ('allRats_DGCA3_spatData.mat', 'spatData')
     SI_spat = spatData.SI_spat;
     nSpks = spatData.nSpks;
     
-    meanRate(~(env=='fam' | env=='nov' | env=='sleep')) = NaN;
-    burstIndex(~(env=='fam' | env=='nov' | env=='sleep')) = NaN;
-    SI_spat(~(env=='fam' | env=='nov' | env=='sleep')) = NaN;
+    meanRate(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
+    burstIndex(~(env=='fam' | env=='nov'| env=='diff'  | env=='sleep')) = NaN;
+    SI_spat(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
 
 
 %gather age data from cellInfo %figure out how to change this 
@@ -67,19 +67,19 @@ load ('allRats_DGCA3_spatData.mat', 'spatData')
     
     rateChange = ((awakeMeanRate-sleepMeanRate)./(awakeMeanRate+sleepMeanRate));
 
-% animal binning 
-   ratBins = [804 889];%this isnt actually working 
-   for itRat = 1:size(ratBins,1)
-       indRat = rat>=ratBins(itRat,1) & rat<=ratBins(itRat,2);
-       meanRate = meanRate(indRat,:); 
-       burstIndex = burstIndex(indRat,:);
+% % animal binning 
+%    ratBins = [804 889];%this isnt actually working 
+%    for itRat = 1:size(ratBins,1)
+%        indRat = rat>=ratBins(itRat,1) & rat<=ratBins(itRat,2);
+%        meanRate = meanRate(indRat,:); 
+%        burstIndex = burstIndex(indRat,:);
        
 Age =[];
 rateOverlaps =[];
 Environment = [];
 %   age binning 
 
-    ageBins   =  [18 19; 20 21; 22 23];%;[18 20;22 23];  list of age bins each spanning from col1:col2
+    ageBins   =  [27 27];%;[18 20;22 23];  list of age bins each spanning from col1:col2
     
     for itAge=1:size(ageBins,1)
         
@@ -296,7 +296,7 @@ Environment = [];
         burstIndex = spatData.burstIndex;
 
     end  
-   end
+   %end
    
     [p,tbl,stats]=anovan(rateOverlaps,{Age,Environment},'model','interaction', 'varnames',{'Age','Environment'});
    

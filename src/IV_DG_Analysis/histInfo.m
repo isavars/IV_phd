@@ -9,8 +9,8 @@ function [cell_layer]= histInfo()
 
     %get tet data from cell info
     cellInfo = getCellInfo();
-    rat = [1099;222;1241;1242];%cellInfo(:,1);%
-    tet = [2;3;4;7]; %cellInfo(:,2);%
+    rat = cellInfo(:,1);%
+    tet = cellInfo(:,2);%
 
     %loop through animal ids to see if they have histology and add the
     %histologylabel per tetrode to each cell (lengthwise on spat data)

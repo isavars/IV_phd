@@ -90,7 +90,7 @@ else
 end
 posStep    = prms.stateStep * prms.posSR;
 reshapeInd = bsxfun( @plus,  (posWin/2):posStep:(posStep*nWin),  (0:(posWin-1))' );
-speedByWin = nanmean(  speed(reshapeInd),  1  );
+speedByWin = mean( speed(reshapeInd) ,  1  );
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

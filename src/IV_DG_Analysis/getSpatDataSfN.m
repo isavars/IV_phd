@@ -109,38 +109,19 @@ for ii=1:length(SD.selData)
         end
         for jj = 1:length(data.trials)
             if ~any(strcmp(envList(jj), trialOrder(jj))) %it might skip this whole bit because the envList matches the trial Order - if there's a few our of order comment next bit out and add a work around
-            NewEnvList = cell(1,6); %started changing stuff here - deal with this mess - might not be necessary because all the trials from the silicon probes should be in the same order - double check the single shank data
-                if strcmp(data.trials(2).user.environment, trialOrder(3))
-                    for kk= length(data.trials):-1:1
-                        data.trials (kk+1) = data.trials(kk);
-                    end
-                    NewEnvList{1} = ''; 
-                    NewEnvList(2:end) = envList;
-                elseif strcmp(data.trials(2).user.environment,trialOrder(6)) %&& strcmp(data.trials(4).user.environment,trialOrder(5))
-                    data.trials(4)= data.trials(5);
-                    data.trials(5)= data.trials(2); 
-                    NewEnvList{1} = envList{1};
-                    NewEnvList{2} = ''; 
-                    NewEnvList{3} = envList{3};
-                    NewEnvList{4} = envList{5}; 
-                    NewEnvList{5} = envList{4}; 
-                elseif strcmp(data.trials(4).user.environment,trialOrder(6))
-                    data.trials(5) = data.trials(4);
-                    NewEnvList{4} = '';                   
-                    NewEnvList{5} = envList{end};
-                    NewEnvList(1:3) = envList(1:3);
-                elseif strcmp(data.trials(1).user.environment,trialOrder(6))
-                    data.trials(5)= data.trials(1);
-                    data.trials(1)= data.trials(2);
-                    NewEnvList{5} = envList{1};
-                    NewEnvList{1} = '';
-                    NewEnvList(2:4) = envList(2:4);  
+                NewEnvList = cell(1,6);
+                if strcmp(data.trials(5).user.environment, trialOrder(6))
+                    NewEnvList = envList;
+                    NewEnvList{5} = '';         
+                else
+                    NewEnvList = {'fam', 'fam', 'nov', 'fam','diff', 'sleep'}; %hc the other trial order config - should work
                 end
             envList = NewEnvList;
             end
         end
         trialsToUse = 1:length(data.trials);
     end  
+
     
     % scale path (if required)
     if prms.scaleToFitSquare
@@ -230,7 +211,7 @@ for ii=1:length(SD.selData)
                 ResT.interStabSpat(cellCount,kk) = map_spatialcorr(rMap,rMaps{trialsToUse(kk+1),jj}(RMWinR,RMWinC)); % across trial stability - spat
             end  
             %%% Basic measures of firing %%%
-            ResT.peakRate(cellCount,kk) = nanmax(rMap(:));  % Peak Rate rate map
+            ResT.peakRate(cellCount,kk) = max(rMap(:));  % Peak Rate rate map
             ResT.meanRate(cellCount,kk) = length( data.trials( trialsToUse(kk) ).cells(jj).st ) / data.trials( trialsToUse(kk) ).dur; % mean rate 
             ResT.nSpks(cellCount,kk) = length(data.trials( trialsToUse(kk) ).cells(jj).st ); % number of spikes
             ResT.SpkTs{cellCount,kk} = data.trials( trialsToUse(kk) ).cells(jj).st;
@@ -243,16 +224,16 @@ for ii=1:length(SD.selData)
                 wf = NaN;
             end
             wf           = (wf./128) .* (data_scaled.trials(trialsToUse(kk)).cells(jj).scalemax);  % Convert to true voltage (units in scan are -127:128 digitisation levels).
-            wfMins       = nanmin( wf, [], 1 );
-            wfMaxs       = nanmax( wf, [], 1 );
+            wfMins       = min( wf, [], 1 );
+            wfMaxs       = max( wf, [], 1 );
             wfAmps       = wfMaxs - wfMins;
-            [~,maxAmpCh] = nanmax( wfAmps );
+            [~,maxAmpCh] = max( wfAmps );
             ResT.waveforms{cellCount,kk} = wf( :, maxAmpCh );
             ResT.wf_means{cellCount,kk} = (data_scaled.trials(trialsToUse(kk)).cells(jj).wf_means);
             
         %Filter sleep trial for State
         elseif ResT.env(cellCount,kk) == trialOrder(6)
-           [bestEEG, peakTheta, peakDelta] = select_eeg;
+           [bestEEG, peakTheta, peakDelta] = select_conv_eeg;
            stateInds =  getBrainStateHardThr (data.trials(trialsToUse(kk)).speed, bestEEG, 'thetaFr', peakTheta, 'deltaFr', peakDelta);
            SWS = stateInds.sws;
            indStart = diff([0,SWS,0]) == 1;  indStart = find(indStart == 1); indStart = indStart*0.8 - 0.4;
@@ -267,7 +248,7 @@ for ii=1:length(SD.selData)
            end
 
             %%% Basic measures of firing %%%
-            ResT.peakRate(cellCount,kk) = nanmax(rMap(:));  % Peak Rate rate map
+            ResT.peakRate(cellCount,kk) = max(rMap(:));  % Peak Rate rate map
             ResT.meanRate(cellCount,kk) = length(newSpikeTimes) / newTrialDuration; % mean rate 
             ResT.nSpks(cellCount,kk) = length(newSpikeTimes ); % number of spikes
             ResT.SpkTs{cellCount,kk} = newSpikeTimes;

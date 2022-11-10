@@ -1,4 +1,4 @@
-function [layer] = makeDS2(probe_used)
+function [layer] = makeDS2(eegs,mapping)
 %I want this to: 
     % 1. load eegs from selected trials 
     % 2. threshold for DS2 spike and select strongest ampliudes - combine this with actual
@@ -23,7 +23,6 @@ function [layer] = makeDS2(probe_used)
 
     eeg_output = [];
     for it_eegs = 1:32
-        %eeg 1 file doesnt have the 1 so figure that out
         if it_eegs == 1
             eeg_struct  = load_eeg(strcat('220218i_sleepHP_LP.eeg'));
         else
@@ -32,7 +31,7 @@ function [layer] = makeDS2(probe_used)
         eeg_output = [eeg_struct.eeg;eeg_output];
     end
     
-    eeg_output = transpose(reshape(eeg_output,[300000,32])); %find out thwat that number is so it's not hc
+    eeg_output = transpose(reshape(eeg_output,[300000,32])); %find out what that number is so it's not hc
     
     %convert to mV 
     

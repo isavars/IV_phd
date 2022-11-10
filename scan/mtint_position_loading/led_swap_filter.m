@@ -7,8 +7,8 @@ function swap_list = led_swap_filter(led_pos, led_pix)
 
 thresh = 5;
 
-mean_npix = nanmean(led_pix);
-std_npix = nanstd(led_pix);
+mean_npix = mean(led_pix, 'omitnan');
+std_npix = std(led_pix, 'omitnan');
 
 % Check if big light closer to small light at t-1 than to big light at t-1
 % and small light either not found or closer to big light at t-1 than small light at t-1
@@ -25,10 +25,10 @@ pos = 2:size(led_pix,1);
 % dist22 = abs(led_pos(pos, 2, 1)-led_pos(pos-1, 2, 1)) + abs(led_pos(pos, 2, 2)-led_pos(pos-1, 2, 2));
 
 %Calculate eucldian
-dist12 = sqrt(nansum(((squeeze(led_pos(pos,1,:))-squeeze(led_pos(pos-1,2,:))).^2)'));
-dist11 = sqrt(nansum(((squeeze(led_pos(pos,1,:))-squeeze(led_pos(pos-1,1,:))).^2)'));
-dist21 = sqrt(nansum(((squeeze(led_pos(pos,2,:))-squeeze(led_pos(pos-1,1,:))).^2)'));
-dist22 = sqrt(nansum(((squeeze(led_pos(pos,2,:))-squeeze(led_pos(pos-1,2,:))).^2)'));
+dist12 = sqrt(sum(((squeeze(led_pos(pos,1,:))-squeeze(led_pos(pos-1,2,:))).^2)','omitnan'));
+dist11 = sqrt(sum(((squeeze(led_pos(pos,1,:))-squeeze(led_pos(pos-1,1,:))).^2)','omitnan'));
+dist21 = sqrt(sum(((squeeze(led_pos(pos,2,:))-squeeze(led_pos(pos-1,1,:))).^2)','omitnan'));
+dist22 = sqrt(sum(((squeeze(led_pos(pos,2,:))-squeeze(led_pos(pos-1,2,:))).^2)','omitnan'));
 
 switched = (dist12 < dist11-thresh) & ( isnan(led_pos(pos, 2, 1))' |(dist21 < dist22-thresh) );
 
