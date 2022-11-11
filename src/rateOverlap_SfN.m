@@ -26,7 +26,7 @@ load ('spatData_r1099.mat', 'spatData')
 
 %gather age data from cellInfo %figure out how to change this 
 
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     age = cellInfo(:,3);
     rat = cellInfo(:,1); 
     
@@ -35,10 +35,11 @@ load ('spatData_r1099.mat', 'spatData')
     FamInd = nan(length(meanRate),maxFam); 
     FamIndT = [];     
     NovInd = [];
+    DiffInd = [];
     famCount = 0;
 
      for itCell= 1: length(meanRate)
-        for itTrial = 1: 6
+        for itTrial = 1: numTrials
             if contains(cast(spatData.env(itCell,itTrial),'char'),'fam')
                 FamIndT(itCell,itTrial) = itTrial;
                 famCount = famCount + 1;
@@ -48,10 +49,14 @@ load ('spatData_r1099.mat', 'spatData')
             elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'nov')
                 NovInd(itCell,itTrial) = itTrial;
                 NovInd = nonzeros(NovInd);
+            elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'diff')
+                DiffInd(itCell,itTrial) = itTrial;
+                DiffInd = nonzeros(DiffInd);
             end 
         end
         famCount = 0;
      end
+
 %          FamInd1 = FamInd(:,1) %add these next time to simplify a bit?
 %          FamInd2 = FamInd(:,2)
 

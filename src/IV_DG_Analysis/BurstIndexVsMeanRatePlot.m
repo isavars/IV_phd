@@ -1,6 +1,5 @@
-function BurstIndexVsMeanRatePlot ()
+function BurstIndexVsMeanRatePlot_SfN (spatData)
     
-load ('r889_P18-P22_spatData_fin.mat', 'spatData')
 
 
     meanRate = spatData.meanRate;

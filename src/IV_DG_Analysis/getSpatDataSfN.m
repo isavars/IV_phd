@@ -43,6 +43,7 @@ for ii=1 % For neatness, the pre-allocation variable list is hidden in this fold
                  'dataset',     'string'; ...     
                  'cellNo',      nan; ...
                  'trialNo',     scoreDum; ...
+                 'trialName',   'string'; ...
                  'env',         categorical(scoreDum); ...
 
                  'meanRate',    scoreDum; ...
@@ -152,14 +153,14 @@ for ii=1:length(SD.selData)
     %%% so we will calculate scores here, and then assign to every cell in the main loop below.
     pathScoresForDS = nan(3,prms.maxNTrial);  % A note on format: we store the path-type scores in a 4xnTrial cell array, which will get assigned into the Res table in the appropriate row for the cell, in the main loop below.
     for jj=1:length(trialsToUse)
-        dist = sqrt( diff(double(data.trials(trialsToUse(jj)).x)).^2 + diff(double(data.trials(trialsToUse(jj)).y)).^2 );
-        pathScoresForDS(1,jj) = (sum(dist)) / data.trials(trialsToUse(jj)).ppm;   % Row 1 = path length
-        pathScoresForDS(2,jj) = mean(data.trials(trialsToUse(jj)).speed);         % 2 = mean speed
+        dist = sqrt( diff(double(data_scaled.trials(trialsToUse(jj)).x)).^2 + diff(double(data_scaled.trials(trialsToUse(jj)).y)).^2 );
+        pathScoresForDS(1,jj) = (sum(dist)) / data_scaled.trials(trialsToUse(jj)).ppm;   % Row 1 = path length
+        pathScoresForDS(2,jj) = mean(data_scaled.trials(trialsToUse(jj)).speed);         % 2 = mean speed
         pathScoresForDS(3,jj) = sum(sum(~isnan(rPosMaps{trialsToUse(jj),1})));       % 3 = N Position Bins Visited
     end 
    
     %%% Main data collection loop %%%
-    for jj=1:length(data.trials(1).cells)   %% In main loop, jj = iterator for cell %%
+    for jj=1:length(data_scaled.trials(1).cells)   %% In main loop, jj = iterator for cell %%
         
         % Pre-assign the row for this cell %
         ResT(cellCount,:) = cell2table( varList(2,:) );
@@ -191,7 +192,10 @@ for ii=1:length(SD.selData)
             rMap=rMaps{trialsToUse(kk),jj}(RMWinR,RMWinC); % rate map
             
         
-%             if nansum(dMap(:))==0;   continue;   end            
+%             if nansum(dMap(:))==0;   continue;   end    
+            %adding trial names - needs to be in this loop
+            ResT.trialName(cellCount,kk) = {data.trials(kk).trialname};
+
             %%% Store the Rate map for later reference %%%
             ResT.dMap{cellCount,kk} = dMap;
             ResT.dMap1stHalf{cellCount,kk} = dMaps1stHalf{trialsToUse(kk),jj};
@@ -218,18 +222,18 @@ for ii=1:length(SD.selData)
             ResT.burstIndex(cellCount,kk) = (sum(diff(data.trials( trialsToUse(kk) ).cells(jj).st) <= 0.009))/(length(diff(data.trials( trialsToUse(kk) ).cells(jj).st))); % burst index is the proportion of all inter spike intervals that were <= 6ms - IV             
             
             % Get the mean waveform (just channel with highest amplitude).
-            if ~isempty(data.trials(trialsToUse(kk)).cells(jj).wf_means) % This contains the mean waveform for each cluster, format (1:50,1:4), time x tetrode channel.
-                wf = (data.trials(trialsToUse(kk)).cells(jj).wf_means);
+            if ~isempty(data_scaled.trials(trialsToUse(kk)).cells(jj).wf_means) % This contains the mean waveform for each cluster, format (1:50,1:4), time x tetrode channel.
+                wf = (data_scaled.trials(trialsToUse(kk)).cells(jj).wf_means);
             else
                 wf = NaN;
             end
-            %wf           = (wf./128) .* (data.trials(trialsToUse(kk)).cells(jj).scalemax);  % Convert to true voltage (units in scan are -127:128 digitisation levels).
+            %wf           = (wf./128) .* (data_scaled.trials(trialsToUse(kk)).cells(jj).scalemax);  % Convert to true voltage (units in scan are -127:128 digitisation levels).
             wfMins       = min( wf, [], 1 );
             wfMaxs       = max( wf, [], 1 );
             wfAmps       = wfMaxs - wfMins;
             [~,maxAmpCh] = max( wfAmps );
             ResT.waveforms{cellCount,kk} = wf( :, maxAmpCh );
-            ResT.wf_means{cellCount,kk} = (data.trials(trialsToUse(kk)).cells(jj).wf_means);
+            ResT.wf_means{cellCount,kk} = (data_scaled.trials(trialsToUse(kk)).cells(jj).wf_means);
             
         %Filter sleep trial for State
         elseif ResT.env(cellCount,kk) == trialOrder(6)
@@ -253,6 +257,9 @@ for ii=1:length(SD.selData)
             ResT.nSpks(cellCount,kk) = length(newSpikeTimes ); % number of spikes
             ResT.SpkTs{cellCount,kk} = newSpikeTimes;
             ResT.burstIndex(cellCount,kk) = (sum(diff(newSpikeTimes) <= 0.009))/(length(diff(newSpikeTimes))); % burst index is the proportion of all inter spike intervals that were <= 6ms - IV 
+            
+            %adding trial names - needs to be in this loop
+            ResT.trialName(cellCount,kk) = {data.trials(kk).trialname};
           end             
             %%% Directional Stats %%%    
 %             ResT.SI_dir(cellCount,kk) = map_skaggsinfo(dMap,dPosMaps{trialsToUse(kk),1}); % spatial info - dir

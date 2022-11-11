@@ -62,7 +62,7 @@ function rateMapsFigure_SfN (spatData)
     
 %gather age data from cellInfo 
 
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     corecorded = cellInfo(:,4);   
 %obtain clusters 
 
@@ -73,143 +73,56 @@ function rateMapsFigure_SfN (spatData)
     NewCluster3 = transpose(cluster3);
     NewCluster4 = transpose(cluster4);
     
+    clusters = {NewCluster1,NewCluster2,NewCluster3,NewCluster4}; %array of cluster names  
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
 % least spatial based on the SI_spat score. 
 
-    spatRank = [];
-    for jj = NewCluster1
-        spatRank(jj)= mean(SI_spat(jj,1:3));
+    for itC = 1:length(clusters)
+        spatRank = [];
+        for jj = clusters{itC}
+            spatRank(jj)= mean(SI_spat(jj,1:5));
+        end
+        spatRank = nonzeros(spatRank);
+        SpatRankCluster = zeros(length(clusters{itC}),2); 
+        SpatRankCluster(:,1) = clusters{itC};
+        SpatRankCluster(:,2) = spatRank;
+        SpatRankCluster = sortrows(SpatRankCluster,2, 'descend');
+        clusters{itC} = SpatRankCluster(:,1);
     end
-    spatRank = nonzeros(spatRank);
-    SpatRankCluster1 = zeros(length(cluster1),3); %made changes here 13/04/2020
-    SpatRankCluster1(:,1) = NewCluster1;
-    SpatRankCluster1(:,2) = spatRank;
-    SpatRankCluster1 = sortrows(SpatRankCluster1,2, 'descend');
-    NewCluster1 = SpatRankCluster1(:,1);
-    
-    spatRank = [];
-    for jj = NewCluster2
-        spatRank(jj)= mean(SI_spat(jj,1:3));
-    end
-    spatRank = nonzeros(spatRank);
-    SpatRankCluster = zeros(length(cluster2),2);
-    SpatRankCluster(:,1) = NewCluster2;
-    SpatRankCluster(:,2) = spatRank;
-    SpatRankCluster = sortrows(SpatRankCluster,2, 'descend');
-    NewCluster2 = SpatRankCluster(:,1);
-    
-    spatRank = [];
-    for jj = NewCluster3
-        spatRank(jj)= mean(SI_spat(jj,1:3));
-    end
-    spatRank = nonzeros(spatRank);
-    SpatRankCluster = zeros(length(cluster3),2);
-    SpatRankCluster(:,1) = NewCluster3;
-    SpatRankCluster(:,2) = spatRank;
-    SpatRankCluster = sortrows(SpatRankCluster,2, 'descend');
-    NewCluster3 = SpatRankCluster(:,1);
-    
-    spatRank = [];
-    for jj = NewCluster4
-        spatRank(jj)= mean(SI_spat(jj,1:3));
-    end
-    spatRank = nonzeros(spatRank);
-    SpatRankCluster = zeros(length(cluster4),2);
-    SpatRankCluster(:,1) = NewCluster4;
-    SpatRankCluster(:,2) = spatRank;
-    SpatRankCluster = sortrows(SpatRankCluster,2, 'descend');
-    NewCluster4 = SpatRankCluster(:,1);
     
 
 % makes 1 figure per cluster
     
     maxRowPerFig = 6;
     axRowCount = 1;
-    
+
+
     %   makes labels 
 
-    textContent = cellID; %IV 04/12/21 strcat((extractBefore (cellID, '_')),'P',(extractAfter (cellID, 'P')));
+    textContent = strcat((extractBefore (cellID, '_')),' ','P',(extractAfter (cellID, 'P')));
     
-    for it_clu = 1: length(NewCluster1) 
-        if it_clu == 1 || axRowCount > maxRowPerFig
-            axRowCount = 1;
-            hFig = gra_multiplot(maxRowPerFig, 6, 'figborder', [2 1 1 1]);
-            axArr = getappdata(hFig, 'axesHandles' ); % makes the axes     
-        end       
-        for it_rm = 1: 4
-                gra_plotmap(rMap{NewCluster1(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
-%                 if env(NewCluster1(it_clu),1) ~= env(NewCluster1(it_clu),4) 
-%                     map= gra_plotmap(rMap{NewCluster1(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
-%                     delete(map)
-%                 end
+    for itC = 1:length(clusters)
+        for it_clu = 1: length(clusters{itC}) 
+            if it_clu == 1 || axRowCount > maxRowPerFig
+                axRowCount = 1;
+                hFig = gra_multiplot(maxRowPerFig, 7, 'figborder', [2 1 1 1]);
+                axArr = getappdata(hFig, 'axesHandles' ); % makes the axes     
+            end       
+            for it_rm = 1: 5
+                    gra_plotmap(rMap{clusters{itC}(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
+    %                 if env(NewCluster1(it_clu),1) ~= env(NewCluster1(it_clu),4) 
+    %                     map= gra_plotmap(rMap{NewCluster1(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
+    %                     delete(map)
+    %                 end
+            end
+            spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.002,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+            plot(axArr(axRowCount,7), cell2mat(WFs(clusters{itC}(it_clu))));
+                axis(axArr(axRowCount,7),[0 50 -100 100]); 
+            text (axArr(axRowCount,1),-50,23,textContent(clusters{itC}(it_clu)), 'FontSize', 16); 
+            axRowCount = axRowCount + 1;
         end
-%         spk_crosscorr(cell2mat(STs(NewCluster1(it_clu))),'AC',0.002,0.1,900,'plot', axArr(axRowCount,5));% store these somewhere instead of making them 
-        plot(axArr(axRowCount,6), cell2mat(WFs(NewCluster1(it_clu))));
-            axis(axArr(axRowCount,6),[0 50 -100 100]); 
-        text (axArr(axRowCount,1),-50,23,textContent(NewCluster1(it_clu)), 'FontSize', 16); 
-        axRowCount = axRowCount + 1;
-    end 
+   end 
 
-   for it_clu = 1: length(NewCluster2) 
-        if it_clu == 1 || axRowCount > maxRowPerFig
-            axRowCount = 1;
-            hFig = gra_multiplot(maxRowPerFig, 6, 'figborder', [2 1 1 1] );
-            axArr = getappdata(hFig, 'axesHandles' ); % makes the axes 
-        end
-        for it_rm = 1: 4
-            gra_plotmap(rMap{NewCluster2(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm) ); % to put stuff in the axes. 
-%              if env(NewCluster2(it_clu),1) ~= env(NewCluster2(it_clu),4) 
-%                     map= gra_plotmap(rMap{NewCluster2(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
-%                     delete(map)
-%              end
-        end
-        spk_crosscorr(cell2mat(STs(NewCluster2(it_clu))),'AC',0.002,0.3,900,'plot', axArr(axRowCount,5));% store these somewhere instead of making them 
-        plot(axArr(axRowCount,6), cell2mat(WFs(NewCluster2(it_clu))));
-            axis(axArr(axRowCount,6),[0 50 -100 100]);
-        text (axArr(axRowCount,1),-50,23,textContent(NewCluster2(it_clu)), 'FontSize', 16); 
-        axRowCount = axRowCount + 1;
-    end 
 
-    for it_clu = 1: length(NewCluster3) 
-        if it_clu == 1 || axRowCount > maxRowPerFig
-            axRowCount = 1;
-            hFig = gra_multiplot(maxRowPerFig, 6, 'figborder', [2 1 1 1] );
-            axArr = getappdata(hFig, 'axesHandles' ); % makes the axes 
-        end
-        for it_rm = 1: 4
-            gra_plotmap(rMap{NewCluster3(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm) ); % to put stuff in the axes. 
-%              if env(NewCluster3(it_clu),1) ~= env(NewCluster3(it_clu),4) 
-%                     map= gra_plotmap(rMap{NewCluster3(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
-%                     delete(map)
-%              end            
-        end
-         spk_crosscorr(cell2mat(STs(NewCluster3(it_clu))),'AC',0.002,0.3,900,'plot', axArr(axRowCount,5));% store these somewhere instead of making them 
-        plot(axArr(axRowCount,6), cell2mat(WFs(NewCluster3(it_clu))));
-            axis(axArr(axRowCount,6),[0 50 -100 100]);
-        text (axArr(axRowCount,1),-50,23,textContent(NewCluster3(it_clu)), 'FontSize', 16); 
-        axRowCount = axRowCount + 1;
-    end 
-    
-    for it_clu = 1: length(NewCluster4) 
-        if it_clu == 1 || axRowCount > maxRowPerFig
-            axRowCount = 1;
-            hFig = gra_multiplot(maxRowPerFig, 6, 'figborder', [2 1 1 1] );
-            axArr = getappdata(hFig, 'axesHandles' ); % makes the axes 
-        end
-        for it_rm = 1: 4
-            gra_plotmap(rMap{NewCluster4(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm) ); % to put stuff in the axes. 
-%              if env(NewCluster4(it_clu),1) ~= env(NewCluster4(it_clu),4) 
-%                     map= gra_plotmap(rMap{NewCluster4(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
-%                     delete(map)
-%              end  
-
-        end
-         spk_crosscorr(cell2mat(STs(NewCluster4(it_clu))),'AC',0.002,0.3,900,'plot', axArr(axRowCount,5));% store these somewhere instead of making them 
-        plot(axArr(axRowCount,6), cell2mat(WFs(NewCluster4(it_clu))));
-            axis(axArr(axRowCount,6),[0 50 -100 100]);
-        text (axArr(axRowCount,1),-50,23,textContent(NewCluster4(it_clu)), 'FontSize', 16); 
-        axRowCount = axRowCount + 1;
-    end 
- 
 end

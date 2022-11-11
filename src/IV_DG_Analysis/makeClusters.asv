@@ -21,7 +21,7 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
 
     %find histology labels 
 
-    cell_layer= histInfo();
+    cell_layer= histInfo(spatData);
 
     %make indexes for environment to use in comparisons with any file 
     maxFam = 2;
@@ -51,7 +51,7 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
         famCount = 0;
      end
 
-     %make rate change score and spatial information score
+    %make rate change score and spatial information score
     
     for it_gma = 1: length (meanRate)
         awakeMeanRate(it_gma,:) = mean(meanRate(it_gma,(FamInd(1):FamInd(2))));
@@ -72,7 +72,44 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
             meanBurstIndex(it_gm) = mean(burstIndex(it_gm,end));
         end
     end
+    
+    %make special burst index from Senzai and Buzsaki
 
+    burstIndex_Senzai = [];
+    for itSP = 1: length(SpkTs)
+        spike_AC = spk_crosscorr(cell2mat(SpkTs(itSP,FamInd(itSP,1))),'AC',0.001,0.3,900, 'norm', 'none');
+        spike = mean(spike_AC(304:306));
+        baseline= mean(spike_AC(501:601));
+        burstIndex_Senzai = [burstIndex_Senzai; spike/baseline];
+    end 
+
+    %make spike width  
+
+    for itSp = 1: length (nSpks) 
+        [~, maxSpksPos] = max(nSpks(itSp,1:3));
+        WFs (itSp,:) = wf_means(itSp, maxSpksPos);
+    end
+
+    %interneuron filtering based on Senzai and Buzsaki
+
+    InCluster = [];
+    ExCluster = [];
+    for itWF = 1: length (WFs) 
+        if length(cell2mat(waveforms(itWF,FamInd(itWF,1)))) == 50
+            spikeFeatures = spk_characterisewaveform(WFs{itWF,:}, [100,100,100,100]);%save this somewhere else it takes ages 
+            spikeWidth (itWF, 1) = spikeFeatures.pk2TrTime;
+            spikeWidth (itWF,2) = spikeFeatures.pk2TrAmp;
+        else 
+            spikeWidth (itWF, 1) = NaN;
+            spikeWidth (itWF,2) = NaN;
+        end
+        if spikeWidth (itWF,1) < 0.425 && burstIndex_Senzai(itWF) <= 1
+            InCluster = [InCluster;itWF]; 
+        else 
+            ExCluster = [ExCluster;itWF];
+        end
+    end
+    
 
     %simple sorting based on histology label - this will hopefully produce
     %a distinct set of firing properties that can be used to sort the
@@ -84,7 +121,8 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
     interneuron_cluster = []; %filter out super high firing rate from all the clusters to make this one 
 
     for itH = 1: length(cell_layer)
-        if (meanMeanRate(itH) >= 1) && (meanBurstIndex(itH) <= 0.05) %interneurons
+        %if (meanMeanRate(itH) >= 1.5) %&& (meanBurstIndex(itH) <= 0.05) %interneurons - Knierim cutoff is 10Hz - by that standard I have no cells in these clusters
+        if  
             interneuron_cluster = [interneuron_cluster;itH];
         else
             if strcmp(cell_layer{itH,1}, "GCL") 
@@ -93,10 +131,14 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
                 mossy_cluster = [mossy_cluster;itH];
             elseif strcmp(cell_layer{itH,1}, "CA3")
                 pyramidal_cluster = [pyramidal_cluster;itH];
-            else 
             end 
         end
     end
+
+    cluster1 = interneuron_cluster;
+    cluster2 = granule_cluster;
+    cluster3 = mossy_cluster;
+    cluster4 = pyramidal_cluster;
 
     
 %     %make clusters based on firing properties 

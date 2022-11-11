@@ -3,12 +3,12 @@
 % HL CA3 or CA3 HL and a label for probe types for each cell based on it's tetrode to be used by any function. 
 % *labelling per tetrode for now as part of the SfN data push 
 
-function [cell_layer]= histInfo()
+function [cell_layer]= histInfo(spatData)
 
     load ('histology.mat', 'histology')
 
     %get tet data from cell info
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     rat = cellInfo(:,1);%
     tet = cellInfo(:,2);%
 
