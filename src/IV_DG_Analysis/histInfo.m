@@ -25,7 +25,7 @@ function [cell_layer]= histInfo(spatData)
             rat_row = find(histology.rat_ID == rat(it_ID));
             if tetrode_number == 1 
                 cell_layer{it_ID,1} =  histology.channel_group_1(rat_row);
-                if contains(cell_layer{itID,1}," ") == 1
+                if contains(cell_layer{it_ID,1}," ") == 1
                     cell_layer{it_ID,2} = 2; %certainty score of 2 if there are two possible layers
                 else
                     cell_layer{it_ID,2} = 1;  %certainty score of 1 if there is one possible layer

@@ -2,7 +2,7 @@ function populationData()
 %makes summary plots for clustered data in bar charts. 
 
 
-load ('allRats_spatData_CDB.mat', 'spatData')
+load ('spatData_probes.mat', 'spatData')
 
 %gather data from spatData
 
@@ -19,7 +19,7 @@ load ('allRats_spatData_CDB.mat', 'spatData')
     
 %gather age data from cellInfo 
 
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     age = cellInfo(:,3);
     corecorded = cellInfo(:,4);
     

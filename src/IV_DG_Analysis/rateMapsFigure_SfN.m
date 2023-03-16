@@ -27,34 +27,12 @@ function rateMapsFigure_SfN (spatData)
     meanRate(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
     burstIndex(~(env=='fam' | env=='nov'| env=='diff'  | env=='sleep')) = NaN;
     SI_spat(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
-    
-%make indexes for environment to use in comparisons with any file 
-        maxFam = 2;
-        FamInd = nan(length(meanRate),maxFam); 
-        FamIndT = [];     
-        NovInd = [];
-        famCount = 0;
-        
-        for itCell= 1: length(meanRate)
-            for itTrial = 1: 6
-                if contains(cast(spatData.env(itCell,itTrial),'char'),'fam')
-                    FamIndT(itCell,itTrial) = itTrial;
-                    famCount = famCount + 1;
-                    if famCount <= maxFam
-                         FamInd(itCell,famCount)= transpose(nonzeros(FamIndT(itCell,itTrial)));
-                    end
-                elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'nov')
-                    NovInd(itCell,itTrial) = itTrial;
-                    NovInd = nonzeros(NovInd);
-                end 
-            end
-            famCount = 0;
-        end
+
         
 %prepare data for AC and waveforms  
 
     for itSp = 1: length (nSpks) 
-        [~, maxSpksPos] = max(nSpks(itSp,2:4));
+        [~, maxSpksPos] = max(nSpks(itSp,1:5));
         STs(itSp,:) = SpkTs(itSp, maxSpksPos);
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
     end
@@ -73,7 +51,7 @@ function rateMapsFigure_SfN (spatData)
     NewCluster3 = transpose(cluster3);
     NewCluster4 = transpose(cluster4);
     
-    clusters = {NewCluster1,NewCluster2,NewCluster3,NewCluster4}; %array of cluster names  
+    clusters = {NewCluster3};%{NewCluster1,NewCluster2,NewCluster3,NewCluster4}; %array of cluster names  
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
 % least spatial based on the SI_spat score. 
@@ -111,15 +89,12 @@ function rateMapsFigure_SfN (spatData)
             end       
             for it_rm = 1: 5
                     gra_plotmap(rMap{clusters{itC}(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
-    %                 if env(NewCluster1(it_clu),1) ~= env(NewCluster1(it_clu),4) 
-    %                     map= gra_plotmap(rMap{NewCluster1(it_clu),4}, 'parent', axArr(axRowCount, 4),'text_pos', 'none');
-    %                     delete(map)
-    %                 end
             end
-            spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.002,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+            spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+                axis(axArr(axRowCount,7),[0 50 -100 100]);
             plot(axArr(axRowCount,7), cell2mat(WFs(clusters{itC}(it_clu))));
                 axis(axArr(axRowCount,7),[0 50 -100 100]); 
-            text (axArr(axRowCount,1),-50,23,textContent(clusters{itC}(it_clu)), 'FontSize', 16); 
+            text (axArr(axRowCount,1),-50,23,textContent(clusters{itC}(it_clu)), 'FontSize', 12); 
             axRowCount = axRowCount + 1;
         end
    end 

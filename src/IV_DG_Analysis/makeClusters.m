@@ -1,4 +1,4 @@
-function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
+function [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData)
 %CLUSTER makes clusters based on meanRate and burstIndex that can then be
 %called by the other functions -- plan is to get this to use histology
 %labels also - for now as a pre threshold but later it should be informing
@@ -122,18 +122,21 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
     mossy_cluster = [];
     pyramidal_cluster = [];
     interneuron_cluster = []; %filter out super high firing rate from all the clusters to make this one 
+    unclassified_cluster = [];
 
     for itH = 1: length(cell_layer)
-        %if (meanMeanRate(itH) >= 1.5) %&& (meanBurstIndex(itH) <= 0.05) %interneurons - Knierim cutoff is 10Hz - by that standard I have no cells in these clusters
-        if  ismember(itH,InCluster)
+        if (meanMeanRate(itH) >= 5) %&& (meanBurstIndex(itH) <= 0.05) %interneurons - Knierim cutoff is 10Hz - by that standard I have no cells in these clusters
+%          if  ismember(itH,InCluster)
             interneuron_cluster = [interneuron_cluster;itH];
         else
             if strcmp(cell_layer{itH,1}, "GCL") 
                granule_cluster = [granule_cluster;itH];
-            elseif strcmp(cell_layer{itH,1}, "HL")
-                mossy_cluster = [mossy_cluster;itH];
             elseif strcmp(cell_layer{itH,1}, "CA3")
                 pyramidal_cluster = [pyramidal_cluster;itH];
+            elseif  (meanBurstIndex(itH)>=0.04)|| strcmp(cell_layer{itH,1}, "HL") %
+                mossy_cluster = [mossy_cluster;itH];
+            else
+                unclassified_cluster = [unclassified_cluster;itH];
             end 
         end
     end
@@ -142,10 +145,11 @@ function [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData)
     cluster2 = granule_cluster;
     cluster3 = mossy_cluster;
     cluster4 = pyramidal_cluster;
+    cluster5 = unclassified_cluster;
 
     
-%     %make clusters based on firing properties 
-% 
+    %make clusters based on firing properties 
+
 %     cluster1 = [];
 %     cluster2 = [];
 %     cluster3 = [];

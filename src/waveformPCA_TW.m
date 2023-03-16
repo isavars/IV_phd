@@ -44,7 +44,7 @@ function waveformPCA_TW (spatData)
 
     burstIndex_Senzai = [];
     for itSP = 1: length(SpkTs)
-        spike_AC = spk_crosscorr(cell2mat(SpkTs(itSP,FamInd(itSP,1))),'AC',0.001,0.3,900, 'norm', 'none');
+        spike_AC = spk_crosscorr(cell2mat(SpkTs(itSP,FamInd(itSP,1))),'AC',0.002,0.3,900, 'norm', 'none');
         spike = mean(spike_AC(304:306));
         baseline= mean(spike_AC(501:601));
         burstIndex_Senzai = [burstIndex_Senzai; spike/baseline];

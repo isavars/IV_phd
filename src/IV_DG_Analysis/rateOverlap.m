@@ -26,7 +26,7 @@ load ('spatData_r1099.mat', 'spatData')
 
 %gather age data from cellInfo %figure out how to change this 
 
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     age = cellInfo(:,3);
     rat = cellInfo(:,1); 
     
@@ -220,16 +220,16 @@ Environment = [];
         CellCount3 = length(cluster3);
         CellCount4 = length(cluster4);
 
-%         figure()
-%         y = [FAMOverlapC2 NOVOverlapC2; FAMOverlapC3 NOVOverlapC3] %; FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4];
-%         errors = [ FAMErrC2 NOVErrC2; FAMErrC3 NOVErrC3]; %; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];
-%         xticks = ({strcat('GCs (',num2str(CellCount2),')'),strcat('MCs (',num2str(CellCount3),')')}); %strcat('INs (',num2str(CellCount1),')'),,strcat('C4(',num2str(CellCount4),')')});
-%         errorBars = gra_groupedbars(y, errors);
-%         errorBars = set(gca,'xticklabels', xticks);
-%         title(strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); %r',num2str(ratBins(itRat,1)),': put this back in when you fix rat binning 
-%             ylabel('Rate Overlap Score')
-%             xlabel('Cell Type (N)')
-%             
+        figure()
+        y = [FAMOverlapC2 NOVOverlapC2; FAMOverlapC3 NOVOverlapC3] %; FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4];
+        errors = [ FAMErrC2 NOVErrC2; FAMErrC3 NOVErrC3]; %; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];
+        xticks = ({strcat('GCs (',num2str(CellCount2),')'),strcat('MCs (',num2str(CellCount3),')')}); %strcat('INs (',num2str(CellCount1),')'),,strcat('C4(',num2str(CellCount4),')')});
+        errorBars = gra_groupedbars(y, errors);
+        errorBars = set(gca,'xticklabels', xticks);
+        title(strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); %r',num2str(ratBins(itRat,1)),': put this back in when you fix rat binning 
+            ylabel('Rate Overlap Score')
+            xlabel('Cell Type (N)')
+            
 
         
         figure()

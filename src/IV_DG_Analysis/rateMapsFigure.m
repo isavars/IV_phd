@@ -7,7 +7,7 @@ function rateMapsFigure ()
 % add indecexes . Also when picking which rate map to delete - i
 % could just do this on illustrator. 
 
-load ('all_Adult_spatData_CDB.mat', 'spatData')
+load ('spatData_probes.mat', 'spatData')
 
 % obtaining variables from spatData Table (I want to replace this with a
 % separate function called loadSpatData)
@@ -71,7 +71,7 @@ load ('all_Adult_spatData_CDB.mat', 'spatData')
     
 %gather age data from cellInfo 
 
-    cellInfo = getCellInfo();
+    cellInfo = getCellInfo(spatData);
     corecorded = cellInfo(:,4);   
 %obtain clusters 
     

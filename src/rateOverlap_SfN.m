@@ -1,4 +1,4 @@
-function rateOverlap_SfN()
+function rateOverlap_SfN(spatData)
 %RATEOVERLAP is based on the Leutgeb et al., 2007 analysis: 
 %   1. Divide (for each cell) the mean firing rate in the less active
 %   enclosure by the mean firing rate in the more active enclosure.
@@ -11,7 +11,7 @@ function rateOverlap_SfN()
 % load data as input select the .mat file with the data you want and run
 % with spatData as the input. 
 
-load ('spatData_r1099.mat', 'spatData')
+%load ('spatData_r1099.mat', 'spatData')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -37,6 +37,7 @@ load ('spatData_r1099.mat', 'spatData')
     NovInd = [];
     DiffInd = [];
     famCount = 0;
+    numTrials = 6;
 
      for itCell= 1: length(meanRate)
         for itTrial = 1: numTrials
@@ -80,44 +81,108 @@ load ('spatData_r1099.mat', 'spatData')
 %        burstIndex = burstIndex(indRat,:);
 
     %make clusters
-    [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData);
+    [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
        
 Age =[];
 rateOverlaps =[];
 Environment = [];
 %   age binning 
 
-    ageBins   =  [27 27];%;[18 20;22 23];  list of age bins each spanning from col1:col2
+    ageBins   =  [17 20; 27 31];  %list of age bins each spanning from col1:col2
+
+%     clusters = {cluster2,cluster3};%array of cluster names 
 
     
     for itAge=1:size(ageBins,1)
         
         indAge = age>=ageBins(itAge,1) & age<=ageBins(itAge,2); % index for current age bin
-        meanRate = meanRate(indAge,:); 
-        burstIndex = burstIndex(indAge,:);
-    
+%         meanRate = meanRate(indAge,:); 
+%         burstIndex = burstIndex(indAge,:);
+%         FamInd = FamInd(indAge,:);%index matrix changes with age binning
+%         NovInd = NovInd(indAge,:);
+%         nSpks = nSpks(indAge,:);
+
+        meanMeanRate = [];
+        meanBurstIndex = [];
+        for it_gm = 1: length (meanRate)
+            if nSpks(it_gm,FamInd(it_gm,1))  >= 10 || nSpks(it_gm,FamInd(it_gm,2))  >= 10 || nSpks(it_gm,NovInd(it_gm))  >= 10
+                meanMeanRate(it_gm) = mean(meanRate(it_gm,6));% indexing here needs to generalize to all datasets 
+                meanBurstIndex(it_gm) = mean(burstIndex(it_gm,6));
+            end
+        end
+
+        %get indices for new clusters
+        ages_indexes_in_spatData = [];
+        for it_indAge =1: length(indAge) 
+            if true(indAge(it_indAge))
+                ages_indexes_in_spatData = [ages_indexes_in_spatData;it_indAge];
+            else
+            end
+        end
+           Newcluster2 = ismember(cluster2,ages_indexes_in_spatData);
+           cluster2 = cluster2(Newcluster2);
+           Newcluster3 = ismember(cluster3,ages_indexes_in_spatData);
+           cluster3 = cluster3(Newcluster3);
+    % 
+%         for itClu = 1:length(clusters)
+%             famOverlap2 = [];
+%             novOverlap2 = [];
+%             famOverlap3 = [];
+%             novOverlap3 = []; %figure this out for clusters 2 and 3 like
+%             this 
+
+%              for itC1 = 1: length(clusters{itClu})
+%                  if (nSpks(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),1)) | nSpks(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2)) | nSpks(clusters{itClu}(itC1),NovInd(clusters{itClu}(itC1)))) >= 1
+%                      if meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),1)) > meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2))
+%                         famOverlap2(itC1) = meanRate (clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2)) / meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),1));
+%                      elseif meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),1)) < meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2))
+%                         famOverlap2(itC1) = meanRate (clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),1)) / meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2));
+%                      end
+%                      if meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2)) > meanRate(clusters{itClu}(itC1),NovInd(clusters{itClu}(itC1)))
+%                         novOverlap2(itC1) = meanRate (clusters{itClu}(itC1),NovInd(clusters{itClu}(itC1))) / meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2));
+%                      elseif meanRate(clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2)) < meanRate(clusters{itClu}(itC1),NovInd(clusters{itClu}(itC1)))
+%                         novOverlap2(itC1) = meanRate (clusters{itClu}(itC1),FamInd(clusters{itClu}(itC1),2)) / meanRate(clusters{itClu}(itC1),NovInd(clusters{itClu}(itC1)));
+%                      end
+%                  else
+%                  end
+%              end
+%              famOverlap2 = famOverlap2.';
+%              novOverlap2 = novOverlap2.';
+%              FAMOverlapC2 = mean(famOverlap2);
+%              NOVOverlapC2 = mean(novOverlap2); 
+%     %          residual = novOverlap2 - NOVOverlapC2
+%     %          figure;
+%     %          histogram (residual)
+%     
+%     %          famOverlap2 = atanh(famOverlap2);% to make it parametric for
+%     %          mixed anova
+%     %          novOverlap2 = atanh(novOverlap2);
+%              
+%              FAMErrC2 = std(famOverlap2)/sqrt(length(cluster2));
+%              NOVErrC2 = std(novOverlap2)/sqrt(length(cluster2));  
+%         end
         
-        famOverlap1 = [];
-        novOverlap1 = [];
-         for itC1 = 1: length(cluster1)              
-                 if meanRate(cluster1(itC1),FamInd(cluster1(itC1),1)) > meanRate(cluster1(itC1),FamInd(cluster1(itC1),2))
-                    famOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),2)) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),1));
-                 elseif meanRate(cluster1(itC1),FamInd(cluster1(itC1),1)) < meanRate(cluster1(itC1),FamInd(cluster1(itC1),2))
-                    famOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),1)) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),2));
-                 end
-                 if meanRate(cluster1(itC1),FamInd(cluster1(itC1),2)) > meanRate(cluster1(itC1),NovInd(cluster1(itC1)))
-                    novOverlap1(itC1) = meanRate (cluster1(itC1),NovInd(cluster1(itC1))) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),2));
-                 elseif meanRate(cluster1(itC1),FamInd(cluster1(itC1),2)) < meanRate(cluster1(itC1),NovInd(cluster1(itC1)))
-                    novOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),2)) / meanRate(cluster1(itC1),NovInd(cluster1(itC1)));
-                 end
-         end
-         famOverlap1 = rmmissing(transpose(famOverlap1));
-         novOverlap1 = rmmissing(transpose(novOverlap1));
-         FAMOverlapC1 = mean(famOverlap1);
-         NOVOverlapC1 = mean(novOverlap1);
-         FAMErrC1 = std(famOverlap1)/sqrt(length(cluster1));
-         NOVErrC1 = std(novOverlap1)/sqrt(length(cluster1));
-        
+%         famOverlap1 = [];
+%         novOverlap1 = [];
+%          for itC1 = 1: length(cluster1)              
+%                  if meanRate(cluster1(itC1),FamInd(cluster1(itC1),1)) > meanRate(cluster1(itC1),FamInd(cluster1(itC1),2))
+%                     famOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),2)) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),1));
+%                  elseif meanRate(cluster1(itC1),FamInd(cluster1(itC1),1)) < meanRate(cluster1(itC1),FamInd(cluster1(itC1),2))
+%                     famOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),1)) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),2));
+%                  end
+%                  if meanRate(cluster1(itC1),FamInd(cluster1(itC1),2)) > meanRate(cluster1(itC1),NovInd(cluster1(itC1)))
+%                     novOverlap1(itC1) = meanRate (cluster1(itC1),NovInd(cluster1(itC1))) / meanRate(cluster1(itC1),FamInd(cluster1(itC1),2));
+%                  elseif meanRate(cluster1(itC1),FamInd(cluster1(itC1),2)) < meanRate(cluster1(itC1),NovInd(cluster1(itC1)))
+%                     novOverlap1(itC1) = meanRate (cluster1(itC1),FamInd(cluster1(itC1),2)) / meanRate(cluster1(itC1),NovInd(cluster1(itC1)));
+%                  end
+%          end
+%          famOverlap1 = rmmissing(transpose(famOverlap1));
+%          novOverlap1 = rmmissing(transpose(novOverlap1));
+%          FAMOverlapC1 = mean(famOverlap1);
+%          NOVOverlapC1 = mean(novOverlap1);
+%          FAMErrC1 = std(famOverlap1)/sqrt(length(cluster1));
+%          NOVErrC1 = std(novOverlap1)/sqrt(length(cluster1));
+%         
         famOverlap2 = [];
         novOverlap2 = [];
          for itC1 = 1: length(cluster2)
@@ -139,7 +204,7 @@ Environment = [];
          novOverlap2 = novOverlap2.';
          FAMOverlapC2 = mean(famOverlap2);
          NOVOverlapC2 = mean(novOverlap2); 
-%          residual = novOverlap2 - NOVOverlapC2
+% %          residual = novOverlap2 - NOVOverlapC2
 %          figure;
 %          histogram (residual)
 
@@ -149,7 +214,7 @@ Environment = [];
          
          FAMErrC2 = std(famOverlap2)/sqrt(length(cluster2));
          NOVErrC2 = std(novOverlap2)/sqrt(length(cluster2));
-         
+%          
         famOverlap3 = [];
         novOverlap3 = [];
          for itC1 = 1: length(cluster3)
@@ -175,29 +240,29 @@ Environment = [];
          
 %          famOverlap3 = atanh(famOverlap3);
 %          novOverlap3 = atanh(novOverlap3);
-
-        famOverlap4 = [];
-        novOverlap4 = [];
-         for itC1 = 1: length(cluster4)
-             if meanRate(cluster4(itC1),FamInd(cluster4(itC1),1)) > meanRate(cluster4(itC1),FamInd(cluster4(itC1),2))
-                famOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),2)) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),1));
-             elseif meanRate(cluster4(itC1),FamInd(cluster4(itC1),1)) < meanRate(cluster4(itC1),FamInd(cluster4(itC1),2))
-                famOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),1)) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),2));
-             end
-             if meanRate(cluster4(itC1),FamInd(cluster4(itC1),2)) > meanRate(cluster4(itC1),NovInd(cluster4(itC1)))
-                novOverlap4(itC1) = meanRate (cluster4(itC1),NovInd(cluster4(itC1))) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),2));
-             elseif meanRate(cluster4(itC1),FamInd(cluster4(itC1),2)) < meanRate(cluster4(itC1),NovInd(cluster4(itC1)))
-                novOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),2)) / meanRate(cluster4(itC1),NovInd(cluster4(itC1)));
-             end
-         end
-         
-         famOverlap4 = rmmissing(transpose(famOverlap4));
-         novOverlap4 = rmmissing(transpose(novOverlap4));        
-         FAMOverlapC4 = mean(famOverlap4);
-         NOVOverlapC4 = mean(novOverlap4);
-         FAMErrC4 = std(famOverlap4)/sqrt(length(cluster4));
-         NOVErrC4 = std(novOverlap4)/sqrt(length(cluster4));
-         
+% % 
+%         famOverlap4 = [];
+%         novOverlap4 = [];
+%          for itC1 = 1: length(cluster4)
+%              if meanRate(cluster4(itC1),FamInd(cluster4(itC1),1)) > meanRate(cluster4(itC1),FamInd(cluster4(itC1),2))
+%                 famOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),2)) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),1));
+%              elseif meanRate(cluster4(itC1),FamInd(cluster4(itC1),1)) < meanRate(cluster4(itC1),FamInd(cluster4(itC1),2))
+%                 famOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),1)) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),2));
+%              end
+%              if meanRate(cluster4(itC1),FamInd(cluster4(itC1),2)) > meanRate(cluster4(itC1),NovInd(cluster4(itC1)))
+%                 novOverlap4(itC1) = meanRate (cluster4(itC1),NovInd(cluster4(itC1))) / meanRate(cluster4(itC1),FamInd(cluster4(itC1),2));
+%              elseif meanRate(cluster4(itC1),FamInd(cluster4(itC1),2)) < meanRate(cluster4(itC1),NovInd(cluster4(itC1)))
+%                 novOverlap4(itC1) = meanRate (cluster4(itC1),FamInd(cluster4(itC1),2)) / meanRate(cluster4(itC1),NovInd(cluster4(itC1)));
+%              end
+%          end
+%          
+%          famOverlap4 = rmmissing(transpose(famOverlap4));
+%          novOverlap4 = rmmissing(transpose(novOverlap4));        
+%          FAMOverlapC4 = mean(famOverlap4);
+%          NOVOverlapC4 = mean(novOverlap4);
+%          FAMErrC4 = std(famOverlap4)/sqrt(length(cluster4));
+%          NOVErrC4 = std(novOverlap4)/sqrt(length(cluster4));
+%          
         CellCount1 = length(cluster1);
         CellCount2 = length(cluster2);
         CellCount3 = length(cluster3);
@@ -254,19 +319,19 @@ Environment = [];
 %         if this gets too complicated. 
 
                     
-        hFig = gra_multiplot(1, 4, 'figborder', [2 1 1 1]);
-        axArr = getappdata(hFig, 'axesHandles' ); % makes the axes 
-
-           g1 = categorical({'C1F','C1N'});
-           g2 = categorical({'C2F','C2N'});
-           g3 = categorical({'C3F','C3N'});
-           g4 = categorical({'C4F','C4N'});           
-           boxplot(axArr(1,1),[famOverlap1, novOverlap1], g1)
-           boxplot(axArr(1,2),[famOverlap2, novOverlap2], g2) 
-           boxplot(axArr(1,3),[famOverlap3, novOverlap3], g3)
-           boxplot(axArr(1,4),[famOverlap4, novOverlap4], g4)
-           ylabel(axArr(1,1), 'Rate Overlap Score')
-          title(axArr(1,1), strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); 
+%         hFig = gra_multiplot(1, 4, 'figborder', [2 1 1 1]);
+%         axArr = getappdata(hFig, 'axesHandles' ); % makes the axes 
+% 
+%            g1 = categorical({'C1F','C1N'});
+%            g2 = categorical({'C2F','C2N'});
+%            g3 = categorical({'C3F','C3N'});
+%            g4 = categorical({'C4F','C4N'});           
+%            boxplot(axArr(1,1),[famOverlap1, novOverlap1], g1)
+%            boxplot(axArr(1,2),[famOverlap2, novOverlap2], g2) 
+%            boxplot(axArr(1,3),[famOverlap3, novOverlap3], g3)
+%            boxplot(axArr(1,4),[famOverlap4, novOverlap4], g4)
+%            ylabel(axArr(1,1), 'Rate Overlap Score')
+%           title(axArr(1,1), strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); 
 
         Age = [Age;repmat(ageBins(itAge,1),length(famOverlap3),1);repmat(ageBins(itAge,1),length(novOverlap3),1)];% *2 removed for KW atempt 
         rateOverlaps = [rateOverlaps;famOverlap3 ;novOverlap3];%[rateOverlaps; novOverlap2 - famOverlap2];%[famOverlap2 ;novOverlap2];%[rateOverlaps;famOverlap3 ,novOverlap3]%

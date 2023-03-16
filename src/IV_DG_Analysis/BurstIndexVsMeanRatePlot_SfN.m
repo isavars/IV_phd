@@ -1,8 +1,8 @@
-function BurstIndexVsMeanRatePlot_SfN ()
+function BurstIndexVsMeanRatePlot_SfN (spatData)
 
 %changed everything to six trials
     
-load ('spatData_r1099.mat', 'spatData')
+% load ('spatData_r1099.mat', 'spatData')
 
 
     meanRate = spatData.meanRate;
@@ -32,11 +32,20 @@ load ('spatData_r1099.mat', 'spatData')
         maxMeanRate(it_gx) = max(meanRate(it_gx,:));
         maxBurstIndex(it_gx) = max(burstIndex(it_gx,:));
     end
-
+%     for jj=1: length(markerColours)
+%         idx = indices(jj, 1);
+%         if isnan(idx)
+%             idx = 5;
+%         end
+%         markerColours(jj,1)=colours(idx, 1);
+%         markerColours(jj,2)=colours(idx, 2);
+%         markerColours(jj,3)=colours(idx, 3);
+%     end
+%     scatter3(meanRate(:, 1),burstIndex(:, 1), corecorded, 50, markerColours)
 
 % scatterplots for the mean and max mean rate and burst index (all trials)
     figure()
-    scatter(meanMeanRate,meanBurstIndex) %,markerColours)
+    scatter(meanMeanRate,meanBurstIndex, markerColours)
         title('Means of Burst Index Vs Mean Rate: All trials')
         axis([0.001 20 0 0.45])
         xlabel('Mean Rate (seconds)')
@@ -114,62 +123,62 @@ load ('spatData_r1099.mat', 'spatData')
 %         set(gca, 'xscale', 'log')
 %         ylabel('Burst Index')
 %         zlabel('Corecorded cell count')
-% 
-% % box plots from cluster data
-%     figure()
-%     boxplot(meanRate(:,2), indices)
-%     ylabel('Mean Rate (seconds)')
-%     set(gca, 'yscale', 'log')
-%     
-%     figure()
-%     boxplot(burstIndex(:,2), indices)
-%     ylabel('Burst Index')
-%     
-%     figure()
-%     boxplot(corecorded, indices)
-%     ylabel('Co-recorded cells')
+
+% box plots from cluster data
+    figure()
+    boxplot(meanRate(:,2), indices)
+    ylabel('Mean Rate (seconds)')
+    set(gca, 'yscale', 'log')
+    
+    figure()
+    boxplot(burstIndex(:,2), indices)
+    ylabel('Burst Index')
+    
+    figure()
+    boxplot(corecorded, indices)
+    ylabel('Co-recorded cells')
 %     
 %     
 % % box plots for mean rate, burst index and co-recorded cells
 % 
-%     figure()
-%     boxplot(meanRate(:))
-%     xlabel('All Trials')
-%     ylabel('Mean Rate (seconds)')
-%     set(gca, 'yscale', 'log')
-% 
-%     figure ()
-%     boxplot(burstIndex(:))
-%     xlabel('All Trials')
-%     ylabel('Burst Index')
-%     
-%     figure ()
-%     boxplot(corecorded)
-%     xlabel('All Trials')
-%     ylabel('Co-recorded cells')
+    figure()
+    boxplot(meanRate(:))
+    xlabel('All Trials')
+    ylabel('Mean Rate (seconds)')
+    set(gca, 'yscale', 'log')
+
+    figure ()
+    boxplot(burstIndex(:))
+    xlabel('All Trials')
+    ylabel('Burst Index')
+    
+    figure ()
+    boxplot(corecorded)
+    xlabel('All Trials')
+    ylabel('Co-recorded cells')
 
 % box plots for mean rate, burst index, and co-recorded cells per trial 
     
     
-%     for jj = 1:6
-%         figure()
-%         boxplot(meanRate(:,jj), indices)
-%         xlabel({'Clusters'},{':'}, string(env(1,jj)))
-%         ylabel('Mean Rate (seconds)')
-%         set(gca, 'yscale', 'log')
-%     end
-%     
-%     for jj = 1:6
-%         figure()
-%         boxplot(burstIndex(:,jj),indices)
-%         xlabel('Trials')
-%         ylabel('Burst Index')
+    for jj = 1:6
+        figure()
+        boxplot(meanRate(:,jj), indices)
+        xlabel({'Clusters'},{':'}, string(env(1,jj)))
+        ylabel('Mean Rate (seconds)')
+        set(gca, 'yscale', 'log')
+    end
+    
+    for jj = 1:6
+        figure()
+        boxplot(burstIndex(:,jj),indices)
+        xlabel('Trials')
+        ylabel('Burst Index')
 
-%         figure ()
-%         boxplot(corecorded)
-%         xlabel('All Trials')
-% %         ylabel('Co-recorded cells')
-%     end
+        figure ()
+        boxplot(corecorded)
+        xlabel('All Trials')
+%         ylabel('Co-recorded cells')
+    end
     
 
     
