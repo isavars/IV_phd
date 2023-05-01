@@ -3,7 +3,7 @@
 % tint files. 
 
 % The input to this function is a trial directory, mapping
-function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
+function [] = dat2spikes_IV_gain_troubleshoot(read_dir, mapping, trial_num, write_dir)
     if nargin < 4
        write_dir = read_dir;
     end
@@ -137,5 +137,3 @@ end
 
 
 
-
-    
