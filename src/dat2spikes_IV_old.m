@@ -3,7 +3,7 @@
 % tint files. 
 
 % The input to this function is a trial directory, mapping
-function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
+function [] = dat2spikes_IV_old(read_dir, mapping, trial_num, write_dir)
     if nargin < 4
        write_dir = read_dir;
     end
@@ -14,16 +14,9 @@ function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
     name = datFileName(trial_num).name;
     openDat = fopen(strcat(folder,'/',name));
     
-    %gain adjustment per file
-
-    load('gains_thesis_data.mat', 'gains')
-    curr_rat = extractBetween(read_dir,'r','/');
-    curr_rat = str2double(curr_rat{2});
-    curr_rat_idx = find(gains.rat_ID == curr_rat);
-    gain = gains.gain(curr_rat_idx); 
     
     voltages = fread(openDat, [32 inf], '32*int16', 64);   % When using 'skip' format, read-in multiplier specifies N read-in format chunks, skip multiplier specifies N bytes.   
-    voltages = voltages./(2^15) .* 1.5 ./gain .* -1 .* 10^6;                  % TW - I rewrote this for clarity but I think it was correct already. divide by bit resolution? and multiply by voltage on scope 1.5 V - divided by gain 1000 - change to mV * 10^6 and invert trace - better for tint 
+    voltages = voltages./(2^15) .* 1.5 ./1000 .* -1 .* 10^6;                  % TW - I rewrote this for clarity but I think it was correct already. divide by bit resolution? and multiply by voltage on scope 1.5 V - divided by gain 1000 - change to mV * 10^6 and invert trace - better for tint 
     
     % TW - Median subtract common mode noise
     voltages = voltages - median(voltages,1);
@@ -51,14 +44,15 @@ function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
     tet_index = [tet_index; overlap]; % + 1 overlap per octrode 
     
     % run voltage traces through extract_spikes
+    
+%     duration = length(voltages)/48000 ; %trial duration for timestamps divide #samples by sampling rate    
 
     % loop through the tetrodes and make spike_mat and spike_count for each to
     % be used by makeTetrodes
         
-    num_tets = size(tet_index,1); 
-%     name = datFileName(trial_num).name;
+    num_tets = size(tet_index,1); % change to 12 if you do the overlap
     fileNames = {extractBefore(name, ".")};
-    new_tets = cell(num_tets,numel(fileNames)); %I think this might be unecessary
+    new_tets = cell(num_tets,numel(fileNames)); %ive changed these to 8 because I think they correspond to number of tetrodes. 
     num_spikes = cell(num_tets,numel(fileNames));
     num_spikes(:,:) = {0};
     
@@ -73,7 +67,9 @@ function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
         new_tets{ii,1} = final_mat;  
     end
         
-    % Concatenate info from each file 
+    % Concatenate info from each file - this is what tara needs to do but I
+    % sample continously so maybe not needed? is she combining each tetrode for
+    % a full experoment or is this a per file thing? 
     
     tetrode1 = cell2mat(new_tets(1,:)');
     tetrode2 = cell2mat(new_tets(2,:)');
@@ -110,7 +106,7 @@ function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
     trialInfo.trial_date = getValue(txt, 'trial_date');
     trialInfo.duration = getValue(txt, 'duration');
     
-    %cut trial to time 
+    %cut trtial to time 
     trial_duration = str2double(trialInfo.duration);
     [tetrode1,num_spikes(1)] =  cut_trial_to_time(tetrode1,trial_duration,num_spikes(1));
     [tetrode2,num_spikes(2)] =  cut_trial_to_time(tetrode2,trial_duration,num_spikes(2));
@@ -160,4 +156,4 @@ end
 
 
 
-  
+    
