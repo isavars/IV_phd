@@ -14,7 +14,7 @@ function [cell_layer]= histInfo(spatData)
 
     %loop through animal ids to see if they have histology and add the
     %histologylabel per tetrode to each cell (lengthwise on spat data)
-    %column one of cell layer contains the hitology label, column 2
+    %column one of cell layer contains the histology label, column 2
     %contains the cetainty raiting and column 3 contains the probe type. 
     
     cell_layer = cell(length(rat),3);
