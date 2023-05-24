@@ -1,20 +1,20 @@
-function class_cells(data,electrodes)
+function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data,electrodes)
     %this function needs to read in cells from spatData and electrode
     %position table (which has DS2 info and other postion estimate methods)
     %and provide cell classification ids (the length of spatData) for 
     %interneuron, granule cell, mossy cell and CA3 pyramidal cell. 
 
-    % ISSUE #1 - might need to load tetrode index from dat2spikes to have a
-    % way to interpret what channels belong to what tetrode 
-    % TO DO - Add linear probe infon and distance from inversion info to
+    % TO DO - Add linear probe info and distance from inversion info to
     %         DS2_info.
-    %       - sort out how the order works where the clusters still reference
-    %         spatData
+    %       - fix DS2_amplitude to be a mean of values around the peak
+    %       instead of the peak 
 
     %load spatial Data 
     load (data, 'spatData');
     %load useful parts from spatData
     meanRate = spatData.meanRate;
+    awakeMeanRate = mean(meanRate(:,1:5),2, 'omitnan');
+    burstIndex = spatData.burstIndex;
     animal = spatData.animal;
     wf_means = spatData.wf_means;
     waveforms = spatData.waveforms; %waveforms is created from the mean wf with the maximum amplitude - need to keep channel id for it to use DS2 labels
@@ -32,7 +32,6 @@ function class_cells(data,electrodes)
         [~, maxSpksPos] = max(nSpks(itSp,1:5)); % all wake trials (hc change somewhere)
         WFs (itSp,:) = wf_means(itSp, maxSpksPos); %gets best wf from wf means
         max_wf_chan(itSp,:) = max_wf_chan(itSp,maxSpksPos); 
-        burstIndex (itSp,:) = spatData.burstIndex(itSp, maxSpksPos);
         STs (itSp,:) = SpkTs(itSp, maxSpksPos); %gets the spiketimes from the same trial to calculate the burst index
 %         awakeMeanRate (itSp,:) = meanRate(itSp, maxSpksPos); %gets the wake mean firing rate for the most active wake trial (doesn this make sense?)
     end
@@ -67,22 +66,15 @@ function class_cells(data,electrodes)
     % be in one big loop that iterates over rows of spatData? 
 
 
-    %step 2 - filter by excitatory vs inhibitory using trough-to-peak measure
+    %step 2 - filter by excitatory vs inhibitory using trough-to-peak
+    %measure, mean rate, and maybe burst index from Knierim. 
 
-        %make burst index from Senzai and Buzsaki 
-        burstIndex_Senzai = [];
-        for itSP = 1: length(SpkTs)
-            spike_AC = spk_crosscorr(cell2mat(STs(itSP)),'AC',0.001,0.3,900, 'norm', 'none'); 
-            spike = mean(spike_AC(304:306));
-            baseline= mean(spike_AC(501:601));
-            burstIndex_Senzai = [burstIndex_Senzai; spike/baseline];
-        end     
         %make the inhibitory and excitatory clusters for CA3 and DG subgroups
         %-mantaining row numbers from spatData
         InCluster = [];
         ExCluster = [];
         for itWF = 1: length (WFs)
-            if TP_latency(itWF) < 0.425 && burstIndex_Senzai(itWF) <= 1.2
+            if TP_latency(itWF) < 0.425 && awakeMeanRate(itWF) > 1.2 
                 InCluster = [InCluster;itWF]; 
             else 
                 ExCluster = [ExCluster;itWF]; 
@@ -97,7 +89,7 @@ function class_cells(data,electrodes)
         %loop through spatData(DG_ExCluster) and find the DS2 amplitudes of the chosen
         %cells (can select per channel using wf_max_chan index) 
 
-        DS2_amplitudes = [];
+        DS2_amplitudes = []; %trying this out with mean amplitude 
         for it_DG_Ex = DG_ExCluster'
             for it_ep = 1: height(elePos)
                 if strcmp(animal(it_DG_Ex),rat_id(it_ep))
@@ -111,69 +103,110 @@ function class_cells(data,electrodes)
     %subfunciton) need to know what outputs from the pca are the right ones
     %to use here. 
 
-        [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms);
+        [wfPC1,wfPC2,wfPC_clusters] = waveformPCA(DG_ExCluster,waveforms);
 
     %step 5 - create sleep vs wake firing rate (rateChange) - needs to be
     %indexed within the cluster for DG or CA3 and withought Interneurons -
     %need to make a DG_exCluster and a CA3_exCluster - or do this
     %differently with one big loop 
 
-        awakeMeanRate = nanmean(meanRate(:,1:5),2);
         awakeMeanRate = awakeMeanRate(DG_ExCluster);
         sleepMeanRate = meanRate (DG_ExCluster,end);
         rateChange = awakeMeanRate ./ sleepMeanRate;
-
-    %step 6 - run a second PCA on the 4 features wfPC1, wfPC2, rate change
-    %and DS2 amplitude
-
-    % step 7 -run k means as suggested by S&B - once the correct PCA
-    %features are identified. 
     
-    burstIndex = burstIndex(DG_ExCluster);
+    %step 6 - make "slope" from Knierim group (slope of best fit line 
+    % through normalized, sorted waveform peaks of the four tetrode wires)
 
-    %testing plots 
-    figure;
-    scatter(wfPC1,wfPC2)
-    xlabel("wfPC1")
-    ylabel("wfPC2")
 
-    figure;
-    scatter (wfPC1,DS2_amplitudes)
-    xlabel("wfPC1")
-    ylabel("DS2 Amplitudes")
+        % Initialize the slope matrix
+        slope = zeros(length(DG_ExCluster), 1);
+        
+        % Iterate over each index in DG_ExCluster
+        for i = 1:length(DG_ExCluster)
+            % Select the waveform for the current index
+            waveform = WFs{DG_ExCluster(i)};
+            
+            % Determine the peak values for each tetrode channel
+            peaks = max(waveform, [], 1);
+            
+            % Sort the peak values in ascending order
+            sorted_peaks = sort(peaks);
+            
+            % Normalize the sorted peak values
+            normalized_peaks = (sorted_peaks - mean(sorted_peaks)) / std(sorted_peaks);
+            
+            % Calculate the differences between the normalized peak values
+            differences = diff(normalized_peaks);
+            
+            % Calculate the slope of the differences using linear regression
+            x = 1:length(differences);
+            coeffs = polyfit(x, differences, 1);
+            slope(i) = abs(coeffs(1));
+        end
 
-    figure;
-    scatter (wfPC2,DS2_amplitudes)
-    xlabel("wfPC2")
-    ylabel("DS2 Amplitudes")
 
-    figure;
-    scatter (rateChange,DS2_amplitudes)
-    xlabel("firing rate change")
-    ylabel("DS2 Amplitudes")
 
-    figure;
-    scatter (burstIndex,DS2_amplitudes)
-    xlabel("burstIndex")
-    ylabel("DS2 Amplitudes")
+    %step 7 - run a second PCA on the chosen features -output is PC1 to be
+    %used in clustering and histogram showing the distribution. 
+        
+        %burst index for clustering (Knierim method) 
+        burstIndex = burstIndex(DG_ExCluster);
+
+        % Combine the variables into a matrix
+        data = [wfPC1, awakeMeanRate, burstIndex, slope];
+        % run PCA
+        [PC1, PC2]= class_PCA(data);
+
+    % step 8 -run k means - once the correct PCA features are identified. 
     
-    figure;
-    scatter3(rateChange,DS2_amplitudes, wfPC1)
-    xlabel("firing rate change")
-    ylabel("DS2 Amplitudes")
-    zlabel("wfPC1")
 
-    figure()
-    histogram(wfPC1)
-    xlabel('w-PC1')
-    ylabel('Cell Count')
-    title('Histogram of PC1')
+    %testing plots     
     
-    figure()
-    histogram(wfPC2)
-    xlabel('w-PC2')
-    ylabel('Cell Count')
-    title('Histogram of PC2')
+    %k-means on awake mean rate and wfPC1
+        data = [wfPC1,awakeMeanRate];
+        %normalize variances 
+        data = data./nanstd(data,0,1);
+        % Run k-means clustering
+        k = 2;  % Set the number of clusters to 2
+        [idx, centroids] = kmeans(data, k);    
+        % creating the clustering variable 
+        wfPC_rate_clusters =idx;
+        % Plotting the clusters
+        figure;
+        gscatter(data(:, 1), data(:, 2), idx);
+        hold on;
+        scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+        legend('Cluster 1', 'Cluster 2', 'Centroids'); 
+        xlabel("wfPC1")
+        ylabel("wake rate")
+        set(gca,'Yscale','log')
+    
+%     figure;
+%     hold all;
+%     gscatter(wfPC1, awakeMeanRate, wfPC_clusters, 'bg', '.', 12);
+%     xlabel("wfPC1")
+%     ylabel("wake rate")
+%     set(gca,'Yscale','log')
+
+    figure;
+    hold all;
+    gscatter(burstIndex, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
+    xlabel("burst index")
+    ylabel("wake rate")
+    set(gca,'Yscale','log')
+
+    figure;
+    hold all;
+    gscatter(slope, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
+    xlabel("slope")
+    ylabel("wake rate")
+    set(gca,'Yscale','log')
+
+    figure;
+    hold all;
+    gscatter(slope, wfPC1, wfPC_rate_clusters, 'bg', '.', 12);
+    xlabel("slope")
+    ylabel("wfPC1")
 
 
 end 
@@ -208,7 +241,7 @@ function [tetShankChan] = makeTetShankChan(spatData,max_wf_chan)
         end
 end 
 
-function [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms)
+function [wfPC1,wfPC2, wfPC_clusters] = waveformPCA(DG_ExCluster,waveforms)
 
     ex_waveforms = waveforms(DG_ExCluster);
     pca_data = [];
@@ -220,24 +253,31 @@ function [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms)
     % Normalise so each WF peak is 1.
     pca_data      = pca_data ./ max(pca_data,[],2);
     
-    % Shift WFs so that peaks aligned.
+    % Shift WFs so that peaks aligned. - output starts at aligned peak
+    % instead of data begining 
     [~,pkInd]  = max(pca_data,[],2);
     firstPkInd = min(pkInd);
     nSampsWF   = size(pca_data,2);
-    padWF      = size(pca_data);
+    padWF      = zeros(size(pca_data));
+    maxShift = max(pkInd - firstPkInd); 
     for itWF=1:size(pca_data,1)
         WFShift = pkInd(itWF) - firstPkInd;
-        padWF(itWF, 1:(nSampsWF-WFShift) ) = pca_data( itWF, (WFShift+1):nSampsWF );
+        padWF(itWF, (1+maxShift-WFShift):(nSampsWF-WFShift+maxShift)) = pca_data(itWF, :);
     end
+    
+    pca_data = padWF( : , firstPkInd:nSampsWF );%check ig this line works 
+    
+    % create a wave width at half height feature?
 
     % second derrivative 
     diff_pca_data = [];
     for itPCA = 1: size(pca_data,1)
-        diff_pca_data = [diff_pca_data; diff(pca_data(itPCA,20:100),2)]; %inserted 1:80 for the .8 ms time window
+        diff_pca_data = [diff_pca_data; diff(pca_data(itPCA,maxShift:end),2)]; %inserted 1:80 for the .8 ms time window % better time window - maxShift:end
     end
-    [coeff,score] =  pca(diff_pca_data);
+    [coeff,score] =  pca(diff_pca_data(:,1:160));
     w_PC1 = coeff(:,1);
     w_PC2 = coeff(:,2);
+
     
     %try just plotting sections of the second derrivative to see if you get
     %a bimodality 
@@ -245,14 +285,141 @@ function [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms)
     % weight of the PCA
     wfPC1 = score(:,1);
     wfPC2 = score(:,2);
+    
+    data = [wfPC1,wfPC2];
+    %normalize variances 
+    data = data./nanstd(data,0,1);
+    % Run k-means clustering
+    k = 2;  % Set the number of clusters to 2
+    [idx, centroids] = kmeans(data, k);
+    
+    % creating the clustering variable 
+    wfPC_clusters =idx;
 
-    %dot product of 2nd derrivative of upsampled waveforms with w-PC1 and
-    %w-PC2.
-%     wfPC1 = [];
-%     wfPC2   = [];
-%  
-%     for itPD = 1: size(diff_pca_data,1)
-%          wfPC1 = [wfPC1; dot(diff_pca_data(itPD,:).',w_PC1)];
-%          wfPC2 = [wfPC2; dot(diff_pca_data(itPD,:).',w_PC2)];
-%     end
+    % Plotting the clusters
+    figure;
+    gscatter(data(:, 1), data(:, 2), idx);
+    hold on;
+    scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+    legend('Cluster 1', 'Cluster 2', 'Centroids');  
+
 end
+
+function [first_pc, second_pc]= class_PCA(data)
+
+    % Remove rows with NaN values in any of the variables
+        data = data(~any(isnan(data), 2), :);
+        
+        % Normalize the data
+        normalized_data = zscore(data);
+        
+        % Perform PCA on normalized data
+        [coeff, score, ~, ~, explained] = pca(normalized_data);
+        
+        % Extract the first principal component
+        first_pc = score(:, 1);
+        second_pc = score(:,1);
+        
+        % Plot the histogram of the first principal component
+        figure;
+        histogram(first_pc);
+        xlabel('First Principal Component');
+        ylabel('Frequency');
+        title('Histogram of the First Principal Component');
+        
+        % Display the explained variance ratios
+        explained_ratio = explained / sum(explained);
+        disp('Explained Variance Ratios:');
+        disp(explained_ratio);
+end
+
+%%% Features I'm not using for now but might be useful to keep 
+
+%         %make burst index from Senzai and Buzsaki 
+%         burstIndex_Senzai = [];
+%         for itSP = 1: length(SpkTs)
+%             spike_AC = spk_crosscorr(cell2mat(STs(itSP)),'AC',0.001,0.3,900, 'norm', 'none'); 
+%             spike = mean(spike_AC(304:306)); % maybe change this to 3-8ms
+%             baseline= mean(spike_AC(501:601));
+%             burstIndex_Senzai = [burstIndex_Senzai; spike/baseline];
+%         end     
+
+% testing plots 
+
+%     figure;
+%     hold all;
+%     gscatter(wfPC1, DS2_amplitudes, wfPC_rate_clusters, 'br', '.', 12);
+%     xlabel("wfPC1")
+%     ylabel("DS2 Amplitudes")
+
+% 
+% 
+%     figure;
+%     scatter (wfPC2,DS2_amplitudes)
+%     xlabel("wfPC2")
+%     ylabel("DS2 Amplitudes")
+% 
+%     figure;
+% %     scatter (rateChange,DS2_amplitudes)
+%     gscatter(rateChange, DS2_amplitudes, wfPC_clusters, 'br', '.', 12);
+%     xlabel("firing rate change")
+%     set(gca,'Xscale','log')
+%     ylabel("DS2 Amplitudes")
+% % 
+%     figure;
+% %     scatter (burstIndex,DS2_amplitudes)
+%     gscatter(burstIndex, DS2_amplitudes, wfPC_clusters, 'br', '.', 12);
+%     xlabel("burstIndex")
+%     ylabel("DS2 Amplitudes")
+%     
+%     figure;
+% %     scatter3(rateChange,DS2_amplitudes, wfPC1)
+%     gscatter3(rateChange, DS2_amplitudes,wfPC1, wfPC_clusters, 'br', '.', 12);
+%     xlabel("firing rate change")
+%     ylabel("DS2 Amplitudes")
+%     zlabel("wfPC1")
+
+% %     Extract data for each cluster based on wfPC_clusters
+%     cluster1_data = wfPC1(wfPC_clusters == 1);
+%     cluster2_data = wfPC1(wfPC_clusters == 2);
+% %     Plot overlayed histograms with transparent bars and full-color edges
+%     figure;
+%     hold all;
+%     histogram(cluster1_data, 'FaceAlpha', 0.5, 'EdgeColor', 'b', 'LineWidth', 2);
+%     histogram(cluster2_data, 'FaceAlpha', 0.5, 'EdgeColor', 'r', 'LineWidth', 2);    
+%     xlabel('w-PC1');
+%     ylabel('Cell Count');
+%     title('Histogram of PC1');
+%     legend('Cluster 1', 'Cluster 2');
+% 
+%     figure;
+%     DS2_amplitudes_c1 = DS2_amplitudes(wfPC_clusters == 1);
+%     DS2_amplitudes_c2 = DS2_amplitudes(wfPC_clusters == 2);
+%     hold all;
+%     histogram(DS2_amplitudes_c1, 'FaceAlpha', 0.5, 'EdgeColor', 'b', 'LineWidth', 2, 'NumBins',15);
+%     histogram(DS2_amplitudes_c2, 'FaceAlpha', 0.5, 'EdgeColor', 'r', 'LineWidth', 2,'NumBins',12); 
+%     xlabel('DS2 Amplitudes');
+%     ylabel('Frequency');
+%     title('Histogram of DS2 Amplitudes');
+
+%     figure()
+%     histogram(wfPC1)
+%     xlabel('w-PC1')
+%     ylabel('Cell Count')
+%     title('Histogram of PC1')
+%     
+%     figure()
+%     histogram(wfPC2)
+%     xlabel('w-PC2')
+%     ylabel('Cell Count')
+%     title('Histogram of PC2')
+
+%     figure;
+%     scatter(wfPC1,wfPC2)
+%     xlabel("wfPC1")
+%     ylabel("wfPC2")
+% 
+%     figure;
+%     scatter (wfPC1,DS2_amplitudes)
+%     xlabel("wfPC1")
+%     ylabel("DS2 Amplitudes")
