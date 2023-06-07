@@ -1,4 +1,4 @@
-function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data,electrodes)
+function [DS2_amplitudes,PCA2_clusters, DG_ExCluster, InCluster] = class_cells(data,electrodes)
     %this function needs to read in cells from spatData and electrode
     %position table (which has DS2 info and other postion estimate methods)
     %and provide cell classification ids (the length of spatData) for 
@@ -13,9 +13,10 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
     load (data, 'spatData');
     %load useful parts from spatData
     meanRate = spatData.meanRate;
-    awakeMeanRate = mean(meanRate(:,1:5),2, 'omitnan');
+    awakeMeanRate = nanmean(meanRate(:,1:5),2);
     burstIndex = spatData.burstIndex;
     animal = spatData.animal;
+    dataset = spatData.dataset;
     wf_means = spatData.wf_means;
     waveforms = spatData.waveforms; %waveforms is created from the mean wf with the maximum amplitude - need to keep channel id for it to use DS2 labels
     max_wf_chan = spatData.max_wf_channel; %this is per trial needs to be one value 
@@ -24,7 +25,8 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
     TP_latency = mean(spatData.TP_latency,2);
     %load electrode Positions 
     load (electrodes, 'elePos');
-    rat_id = cellstr(elePos.rat_id);
+    rat_id = elePos.rat_ID;% cellstr(elePos.rat_id); the output from new_elePos is slightly different to elePos
+    dataset_elePos = (elePos.dataset);
     hist_labels = elePos.hist_labels;
 
     %chose trial with most spikes to use wfs, spike times, mean firing rate, max wf channel from it 
@@ -51,7 +53,7 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
 
      for it_cells = 1: height(spatData)
          for it_ep = 1: height(elePos)
-             if strcmp(animal(it_cells),rat_id(it_ep))
+             if strcmp(animal(it_cells),rat_id(it_ep)) 
                  hist_label = hist_labels(it_ep,tetShankChan(it_cells,2));
                  if strcmp(hist_label, "DG")
                     DG_cluster = [DG_cluster;it_cells];
@@ -86,13 +88,13 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
     %step 3 - call in position relative to DS2 (specifically DS2 amplitude
     %for the ones that have it and more informed histology lables for the
     %ones that dont) 
-        %loop through spatData(DG_ExCluster) and find the DS2 amplitudes of the chosen
-        %cells (can select per channel using wf_max_chan index) 
+        %loop through spatData(DG_ExCluster) and find the DS2 amplitudes 
+        % of the chosen cells per channel with the largest wf.  
 
         DS2_amplitudes = []; %trying this out with mean amplitude 
         for it_DG_Ex = DG_ExCluster'
             for it_ep = 1: height(elePos)
-                if strcmp(animal(it_DG_Ex),rat_id(it_ep))
+                if strcmp(dataset(it_DG_Ex),dataset_elePos(it_ep))
                     DS2_amplitude = elePos.DS2_amplitude(it_ep,tetShankChan(it_DG_Ex,3)); %third column of tetShankChan is for channel
                     DS2_amplitudes = [DS2_amplitudes;DS2_amplitude];
                 end
@@ -103,7 +105,7 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
     %subfunciton) need to know what outputs from the pca are the right ones
     %to use here. 
 
-        [wfPC1,wfPC2,wfPC_clusters] = waveformPCA(DG_ExCluster,waveforms);
+        [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms);
 
     %step 5 - create sleep vs wake firing rate (rateChange) - needs to be
     %indexed within the cluster for DG or CA3 and withought Interneurons -
@@ -117,96 +119,189 @@ function [DS2_amplitudes,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(d
     %step 6 - make "slope" from Knierim group (slope of best fit line 
     % through normalized, sorted waveform peaks of the four tetrode wires)
 
-
-        % Initialize the slope matrix
-        slope = zeros(length(DG_ExCluster), 1);
-        
-        % Iterate over each index in DG_ExCluster
-        for i = 1:length(DG_ExCluster)
-            % Select the waveform for the current index
-            waveform = WFs{DG_ExCluster(i)};
-            
-            % Determine the peak values for each tetrode channel
-            peaks = max(waveform, [], 1);
-            
-            % Sort the peak values in ascending order
-            sorted_peaks = sort(peaks);
-            
-            % Normalize the sorted peak values
-            normalized_peaks = (sorted_peaks - mean(sorted_peaks)) / std(sorted_peaks);
-            
-            % Calculate the differences between the normalized peak values
-            differences = diff(normalized_peaks);
-            
-            % Calculate the slope of the differences using linear regression
-            x = 1:length(differences);
-            coeffs = polyfit(x, differences, 1);
+        slope = zeros(length(DG_ExCluster), 1);        
+        for i = 1:length(DG_ExCluster)            
+            waveform = WFs{DG_ExCluster(i)};% Select the waveform for the current index            
+            peaks = max(waveform, [], 1);% Determine the peak values for each tetrode channel         
+            sorted_peaks = sort(peaks, 'descend');% Sort the peak values in ascending order  
+            normalized_peaks = sorted_peaks./max(sorted_peaks); %(sorted_peaks - mean(sorted_peaks)) / std(sorted_peaks);% Normalize the sorted peak values      
+            x = 1:length(normalized_peaks);% Calculate the slope of the differences using linear regression
+            coeffs = polyfit(x, normalized_peaks, 1);
             slope(i) = abs(coeffs(1));
         end
 
+    %step 7 - make co-recorded cells -for a given cell how many other cells
+    %were recorded on that shank or tetrode - overlap tetrodes might
+    %complicate this. use tetShankChan.
 
+        co_recorded_cells = zeros(size(tetShankChan, 1), 2);
+        for i = 1:size(tetShankChan, 1)
+            tetrode = tetShankChan(i, 1);
+            shank = tetShankChan(i, 2);
+            dataset_id = dataset{i};% Get the dataset identifier for the current cell            
+            % Find the rows in tetShankChan with the same tetrode number and dataset identifier
+            same_tetrode_rows = (tetShankChan(:, 1) == tetrode) & strcmp(dataset_id, dataset);            
+            % Count the number of co-recorded cells on the same tetrode (excluding the current cell)
+            co_recorded_tetrode_count = sum(same_tetrode_rows) - 1;            
+            % Find the rows in tetShankChan with the same shank number and dataset identifier
+            same_shank_rows = (tetShankChan(:, 2) == shank) & strcmp(dataset_id, dataset);            
+            % Count the number of co-recorded cells on the same shank (excluding the current cell)
+            co_recorded_shank_count = sum(same_shank_rows) - 1;            
+            % Store the co-recorded counts for the current cell
+            co_recorded_cells(i, 1) = co_recorded_tetrode_count;
+            co_recorded_cells(i, 2) = co_recorded_shank_count;
+        end
+        
+        co_recorded_shank = co_recorded_cells(DG_ExCluster,2);
 
-    %step 7 - run a second PCA on the chosen features -output is PC1 to be
+    %step 8 - run a second PCA on the chosen features -output is PC1 to be
     %used in clustering and histogram showing the distribution. 
         
         %burst index for clustering (Knierim method) 
-        burstIndex = burstIndex(DG_ExCluster);
+        burstIndex = []; 
+        for it_DE = DG_ExCluster'
+            burstIndex = [burstIndex;(sum(diff(STs{it_DE}) <= 0.008))/(length(diff(STs{it_DE})))];% 0.008s produced the best bimodality 
+        end 
+%         burstIndex = burstIndex(DG_ExCluster);
 
-        % Combine the variables into a matrix
-        data = [wfPC1, awakeMeanRate, burstIndex, slope];
-        % run PCA
-        [PC1, PC2]= class_PCA(data);
+        data = [wfPC1, rateChange, burstIndex,co_recorded_shank];        % Combine the variables into a matrix
+        [PC1, PC2]= class_PCA(data);        % run PCA
+        
+    % step 9 -run k means with PCs from second PCA and other features 
+        %trying a k-means on different features 
+        cluster_data = [PC1,PC2];%         cluster_data = [wfPC1,PC1];
+        %normalize variances 
+        cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
+        [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
 
-    % step 8 -run k means - once the correct PCA features are identified. 
-    
+%         % Perform k-means clustering on the four features in data (that
+%         made the best second PCA PC1. 
+%         k = 2;  % Number of clusters
+%         idx = kmeans(data, k);
+%         PCA2_clusters = idx;
+  
 
     %testing plots     
+
+    % Define the cluster labels
+    cluster1 = PCA2_clusters == 1;
+    cluster2 = PCA2_clusters == 2;
     
-    %k-means on awake mean rate and wfPC1
-        data = [wfPC1,awakeMeanRate];
-        %normalize variances 
-        data = data./nanstd(data,0,1);
-        % Run k-means clustering
-        k = 2;  % Set the number of clusters to 2
-        [idx, centroids] = kmeans(data, k);    
-        % creating the clustering variable 
-        wfPC_rate_clusters =idx;
-        % Plotting the clusters
-        figure;
-        gscatter(data(:, 1), data(:, 2), idx);
-        hold on;
-        scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
-        legend('Cluster 1', 'Cluster 2', 'Centroids'); 
-        xlabel("wfPC1")
-        ylabel("wake rate")
-        set(gca,'Yscale','log')
+    % Plot the histogram of the first principal component
+    figure;
+    hold on;
+    h1 = histogram(PC1(cluster1), 'NumBins', 12, 'FaceColor', 'blue');
+    h2 = histogram(PC1(cluster2), 'NumBins', 12, 'FaceColor', 'red');
+    hold off;
     
+    xlabel('First Principal Component');
+    ylabel('Frequency');
+    title('Histogram of the First Principal Component');
+    
+    % Create a legend for the clusters
+    legend([h1 h2], 'Cluster 1', 'Cluster 2');
+
+    
+%     %k-means on awake mean rate and wfPC1 - this might still be coming up
+%     with the best clusters ... 
+%         cluster_data = [wfPC1,awakeMeanRate];
+%         %normalize variances 
+%         cluster_data = cluster_data./nanstd(cluster_data,0,1);
+%         % Run k-means clustering
+%         k = 2;  % Set the number of clusters to 2
+%         [idx, centroids] = kmeans(cluster_data, k);    
+%         % creating the clustering variable 
+%         wfPC_rate_clusters =idx;
+%         % Plotting the clusters
+%         figure;
+%         gscatter(data(:, 1), data(:, 2), idx);
+%         hold on;
+%         scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+%         legend('Cluster 1', 'Cluster 2', 'Centroids'); 
+%         xlabel("wfPC1")
+%         ylabel("wake rate")
+%         set(gca,'Yscale','log')
+    
+    figure;
+    gscatter(wfPC1, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+    xlabel("wfPC1")
+    ylabel("DS2 Amplitudes")
+
+    figure;
+    gscatter(awakeMeanRate, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+    xlabel("firing rate")
+    set(gca,'Xscale','log')
+    ylabel("DS2 Amplitudes")
+
+    figure;
+    gscatter(burstIndex, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+    xlabel("burstIndex")
+    ylabel("DS2 Amplitudes")
+
+    figure;
+    hold all;
+    gscatter(co_recorded_shank, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+    xlabel("# co-recorded cells on the same shank")
+    ylabel("DS2 Amplitudes")
+       
 %     figure;
 %     hold all;
 %     gscatter(wfPC1, awakeMeanRate, wfPC_clusters, 'bg', '.', 12);
 %     xlabel("wfPC1")
 %     ylabel("wake rate")
 %     set(gca,'Yscale','log')
+% 
+%     figure;
+%     hold all;
+%     gscatter(burstIndex, awakeMeanRate, wfPC_rate_clusters, 'rg', '.', 12);
+%     xlabel("burst index")
+%     ylabel("wake rate")
+%     set(gca,'Yscale','log')
+% 
+%     figure;
+%     hold all;
+%     gscatter(burstIndex, wfPC1, wfPC_rate_clusters, 'rg', '.', 12);
+%     xlabel("burst index")
+%     ylabel("wfPC1")
+% 
+%     figure;
+%     hold all;
+%     gscatter(co_recorded_shank, wfPC1, wfPC_rate_clusters, 'rg', '.', 12);
+%     xlabel("# co-recorded cells on the same shank")
+%     ylabel("wfPC1")
+% 
+%     figure;
+%     hold all;
+%     gscatter(burstIndex, awakeMeanRate, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("burst index")
+%     ylabel("wake rate")
+%     set(gca,'Yscale','log')
+% 
+%     figure;
+%     hold all;
+%     gscatter(burstIndex, wfPC1, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("burst index")
+%     ylabel("wfPC1")
+% 
+%     figure;
+%     hold all;
+%     gscatter(co_recorded_shank, wfPC1, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("# co-recorded cells on the same shank")
+%     ylabel("wfPC1")
 
-    figure;
-    hold all;
-    gscatter(burstIndex, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
-    xlabel("burst index")
-    ylabel("wake rate")
-    set(gca,'Yscale','log')
 
-    figure;
-    hold all;
-    gscatter(slope, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
-    xlabel("slope")
-    ylabel("wake rate")
-    set(gca,'Yscale','log')
-
-    figure;
-    hold all;
-    gscatter(slope, wfPC1, wfPC_rate_clusters, 'bg', '.', 12);
-    xlabel("slope")
-    ylabel("wfPC1")
+%     figure;
+%     hold all;
+%     gscatter(slope, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
+%     xlabel("slope")
+%     ylabel("wake rate")
+%     set(gca,'Yscale','log')
+% 
+%     figure;
+%     hold all;
+%     gscatter(slope, wfPC1, wfPC_rate_clusters, 'bg', '.', 12);
+%     xlabel("slope")
+%     ylabel("wfPC1")
 
 
 end 
@@ -241,7 +336,7 @@ function [tetShankChan] = makeTetShankChan(spatData,max_wf_chan)
         end
 end 
 
-function [wfPC1,wfPC2, wfPC_clusters] = waveformPCA(DG_ExCluster,waveforms)
+function [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms)
 
     ex_waveforms = waveforms(DG_ExCluster);
     pca_data = [];
@@ -285,53 +380,79 @@ function [wfPC1,wfPC2, wfPC_clusters] = waveformPCA(DG_ExCluster,waveforms)
     % weight of the PCA
     wfPC1 = score(:,1);
     wfPC2 = score(:,2);
-    
-    data = [wfPC1,wfPC2];
-    %normalize variances 
-    data = data./nanstd(data,0,1);
-    % Run k-means clustering
-    k = 2;  % Set the number of clusters to 2
-    [idx, centroids] = kmeans(data, k);
-    
-    % creating the clustering variable 
-    wfPC_clusters =idx;
 
-    % Plotting the clusters
-    figure;
-    gscatter(data(:, 1), data(:, 2), idx);
-    hold on;
-    scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
-    legend('Cluster 1', 'Cluster 2', 'Centroids');  
+    %k-means on the 1st two PCs of the wfPCA - not using for clustering 
+    
+%     data = [wfPC1,wfPC2];
+%     %normalize variances 
+%     data = data./nanstd(data,0,1);
+%     % Run k-means clustering
+%     k = 2;  % Set the number of clusters to 2
+%     [idx, centroids] = kmeans(data, k);
+%     
+%     % creating the clustering variable 
+%     wfPC_clusters =idx;
+% 
+%     % Plotting the clusters
+%     figure;
+%     gscatter(data(:, 1), data(:, 2), idx);
+%     hold on;
+%     scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+%     legend('Cluster 1', 'Cluster 2', 'Centroids');  
 
 end
-
-function [first_pc, second_pc]= class_PCA(data)
-
+function [first_pc, second_pc] = class_PCA(data)
     % Remove rows with NaN values in any of the variables
-        data = data(~any(isnan(data), 2), :);
-        
-        % Normalize the data
-        normalized_data = zscore(data);
-        
-        % Perform PCA on normalized data
-        [coeff, score, ~, ~, explained] = pca(normalized_data);
-        
-        % Extract the first principal component
-        first_pc = score(:, 1);
-        second_pc = score(:,1);
-        
-        % Plot the histogram of the first principal component
-        figure;
-        histogram(first_pc);
-        xlabel('First Principal Component');
-        ylabel('Frequency');
-        title('Histogram of the First Principal Component');
-        
-        % Display the explained variance ratios
-        explained_ratio = explained / sum(explained);
-        disp('Explained Variance Ratios:');
-        disp(explained_ratio);
+    data(isinf(data)) = NaN;
+    valid_rows = ~any(isnan(data), 2);
+    data = data(valid_rows, :);
+
+    % Apply log normalization to awakeMeanRate
+    awakeMeanRate = data(:, 2);
+    log_normalized_awakeMeanRate = log1p(normalize(awakeMeanRate));
+
+    % Combine the log-normalized feature with the rest of the data
+    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4)];
+
+    % Normalize the data
+    normalized_data = zscore(transformed_data);
+
+    % Perform PCA on normalized data
+    [coeff, score, ~, ~, explained] = pca(normalized_data);
+
+    % Extract the first principal component
+    first_pc = NaN(size(data, 1), 1);
+    first_pc(valid_rows) = score(:, 1);
+    
+    % Extract the second principal component
+    second_pc = NaN(size(data, 1), 1);
+    second_pc(valid_rows) = score(:, 2);
+
+    % Display the explained variance ratios
+    explained_ratio = explained / sum(explained);
+    disp('Explained Variance Ratios:');
+    disp(explained_ratio);
 end
+
+function [PCA2_clusters]= kmeans_clustering(cluster_data)
+
+        % Run k-means clustering
+        k = 2;  % Set the number of clusters to 2
+        [idx, centroids] = kmeans(cluster_data, k);    
+        % creating the clustering variable 
+        PCA2_clusters =idx;
+        % Plotting the clusters
+        figure;
+        gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+        hold on;
+        scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+        legend('Cluster 1', 'Cluster 2', 'Centroids'); 
+        xlabel('feature 1')
+        ylabel('feature 2')
+        title('K-Means Clustering');
+end
+
+
 
 %%% Features I'm not using for now but might be useful to keep 
 
@@ -352,7 +473,6 @@ end
 %     xlabel("wfPC1")
 %     ylabel("DS2 Amplitudes")
 
-% 
 % 
 %     figure;
 %     scatter (wfPC2,DS2_amplitudes)
@@ -423,3 +543,37 @@ end
 %     scatter (wfPC1,DS2_amplitudes)
 %     xlabel("wfPC1")
 %     ylabel("DS2 Amplitudes")
+
+% function [first_pc, second_pc] = class_PCA(data)
+%     % Remove rows with NaN values in any of the variables
+%     data = data(~any(isnan(data), 2), :);
+% 
+%     % Apply log normalization to awakeMeanRate
+%     awakeMeanRate = data(:, 2);
+%     log_normalized_awakeMeanRate = log1p(normalize(awakeMeanRate));
+% 
+%     % Combine the log-normalized feature with the rest of the data
+%     transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4)];
+% 
+%     % Normalize the data
+%     normalized_data = zscore(transformed_data);
+% 
+%     % Perform PCA on normalized data
+%     [coeff, score, ~, ~, explained] = pca(normalized_data);
+% 
+%     % Extract the first principal component
+%     first_pc = score(:, 1);
+%     second_pc = score(:, 2);
+% 
+%     % Plot the histogram of the first principal component
+%     figure;
+%     histogram(first_pc,'NumBIns',20);
+%     xlabel('First Principal Component');
+%     ylabel('Frequency');
+%     title('Histogram of the First Principal Component');
+% 
+%     % Display the explained variance ratios
+%     explained_ratio = explained / sum(explained);
+%     disp('Explained Variance Ratios:');
+%     disp(explained_ratio);
+% end

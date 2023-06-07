@@ -1,4 +1,4 @@
-function rateMapsFigure_thesis (data)
+function rateMapsFigure_thesis (data, electrode_positions)
 %1. makes an array of axes to contain rate maps, autocorrelograms and waveforms of cells from my defined clusters
 %2. organized from most spatial to least spatial 
 %3. mantaining a number order (Labels)from the original table 
@@ -15,6 +15,7 @@ function rateMapsFigure_thesis (data)
 % separate function called loadSpatData)
 
 load (data, 'spatData')
+load (electrode_positions, 'elePos')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -58,7 +59,7 @@ load (data, 'spatData')
 %     
 %     clusters = {NewCluster3};%{NewCluster1,NewCluster2,NewCluster3,NewCluster4}; %array of cluster names  
 
-    [DS2_amplitude,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data, "electrode_positions_per_rat.mat");
+    [DS2_amplitude,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data, electrode_positions);
 
 %     AboveDS2 =[];
 %     BelowDS2 =[];
