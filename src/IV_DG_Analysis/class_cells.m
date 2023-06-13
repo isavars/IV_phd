@@ -132,7 +132,9 @@ function [DS2_amplitudes,PCA2_clusters, DG_ExCluster, InCluster] = class_cells(d
 
     %step 7 - make co-recorded cells -for a given cell how many other cells
     %were recorded on that shank or tetrode - overlap tetrodes might
-    %complicate this. use tetShankChan.
+    %complicate this. use tetShankChan. 
+    %make a measure thats co-recorded so that any cell recorded on the same
+    %shank as 4+ cells gets grouped into one 
 
         co_recorded_cells = zeros(size(tetShankChan, 1), 2);
         for i = 1:size(tetShankChan, 1)
@@ -154,6 +156,16 @@ function [DS2_amplitudes,PCA2_clusters, DG_ExCluster, InCluster] = class_cells(d
         
         co_recorded_shank = co_recorded_cells(DG_ExCluster,2);
 
+        co_recorded_shank_capped = zeros(size(co_recorded_shank,2));
+        for ii = 1:length(co_recorded_shank)
+            if co_recorded_shank(ii) >= 4 
+                co_recorded_shank_capped(ii) = 4;
+            else 
+                co_recorded_shank_capped(ii) = co_recorded_shank(ii);
+            end
+        end 
+        co_recorded_shank_capped = co_recorded_shank_capped';
+
     %step 8 - run a second PCA on the chosen features -output is PC1 to be
     %used in clustering and histogram showing the distribution. 
         
@@ -164,7 +176,7 @@ function [DS2_amplitudes,PCA2_clusters, DG_ExCluster, InCluster] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [wfPC1, rateChange, burstIndex,co_recorded_shank];        % Combine the variables into a matrix
+        data = [wfPC1, rateChange, burstIndex,co_recorded_shank_capped];        % Combine the variables into a matrix
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -222,28 +234,28 @@ function [DS2_amplitudes,PCA2_clusters, DG_ExCluster, InCluster] = class_cells(d
 %         ylabel("wake rate")
 %         set(gca,'Yscale','log')
     
-    figure;
-    gscatter(wfPC1, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
-    xlabel("wfPC1")
-    ylabel("DS2 Amplitudes")
-
-    figure;
-    gscatter(awakeMeanRate, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
-    xlabel("firing rate")
-    set(gca,'Xscale','log')
-    ylabel("DS2 Amplitudes")
-
-    figure;
-    gscatter(burstIndex, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
-    xlabel("burstIndex")
-    ylabel("DS2 Amplitudes")
-
-    figure;
-    hold all;
-    gscatter(co_recorded_shank, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
-    xlabel("# co-recorded cells on the same shank")
-    ylabel("DS2 Amplitudes")
-       
+%     figure;
+%     gscatter(wfPC1, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("wfPC1")
+%     ylabel("DS2 Amplitudes")
+% 
+%     figure;
+%     gscatter(awakeMeanRate, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("firing rate")
+%     set(gca,'Xscale','log')
+%     ylabel("DS2 Amplitudes")
+% 
+%     figure;
+%     gscatter(burstIndex, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("burstIndex")
+%     ylabel("DS2 Amplitudes")
+% 
+%     figure;
+%     hold all;
+%     gscatter(co_recorded_shank, DS2_amplitudes, PCA2_clusters, 'bg', '.', 12);
+%     xlabel("# co-recorded cells on the same shank")
+%     ylabel("DS2 Amplitudes")
+%        
 %     figure;
 %     hold all;
 %     gscatter(wfPC1, awakeMeanRate, wfPC_clusters, 'bg', '.', 12);
