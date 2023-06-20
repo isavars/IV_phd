@@ -61,6 +61,20 @@ function spatialCorrelation_SfN(spatData)
 %make clusters
 [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
 
+load('PCA2_clusters_from_WF1_AMR_BI_CCC.mat', 'PCA2_clusters', 'DG_ExCluster') %,'CA3_ExCluster') 
+
+    %make clusters from PCA2_clusters keeping old naming convention for
+    %convenience in running the old code. 
+    cluster2 =[];
+    cluster3 =[]; %keeping og naming convention for a second to see if this code runs 
+    for ii = 1: length(PCA2_clusters)
+        if PCA2_clusters(ii) == 1
+            cluster3 = [cluster3;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC - 1 is mc and 2 is gc 
+        elseif PCA2_clusters(ii) == 2
+            cluster2 = [cluster2;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2 - 1 is gc and 2 is mc 
+
+        end
+    end 
       
 % % animal binning 
 %    ratBins = [804 889];
@@ -80,7 +94,7 @@ NOVfieldNumC3 = [];
 
 %   age binning 
 
-    ageBins   =  [17 20];  %[18 23]; list of age bins each spanning from col1:col2
+    ageBins   =  [17 20]; %list of age bins each spanning from col1:col2
     
     for itAge=1:size(ageBins,1)
         

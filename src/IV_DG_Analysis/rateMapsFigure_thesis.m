@@ -1,13 +1,13 @@
-function rateMapsFigure_thesis (data, electrode_positions)
+function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 %1. makes an array of axes to contain rate maps, autocorrelograms and waveforms of cells from my defined clusters
 %2. organized from most spatial to least spatial 
 %3. mantaining a number order (Labels)from the original table 
 %4. Including waveform and AC from max channel
 
 % TO DO: 
-% 1. make more adaptable to different data sets had to change 1:3 to 2:4 -
-% add indecexes . Also when picking which rate map to delete - i
-% could just do this on illustrator. 2. add a trial duration feature to use
+% 1. make more adaptable to different data sets when picking which rate map 
+% to delete - i could just do this on illustrator. 
+% 2. add a trial duration feature (this will be in spat data) to use
 % in the AC making bit when its not 900s long (so for sleep) 
 
 
@@ -16,6 +16,7 @@ function rateMapsFigure_thesis (data, electrode_positions)
 
 load (data, 'spatData')
 load (electrode_positions, 'elePos')
+load (clusters, 'PCA2_clusters', 'DG_ExCluster')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -41,6 +42,7 @@ load (electrode_positions, 'elePos')
         [~, maxSpksPos] = max(nSpks(itSp,1:5));
         STs(itSp,:) = SpkTs(itSp, maxSpksPos);
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
+        max_meanRate(itSp,:) = meanRate (itSp, maxSpksPos);
     end
     
     
@@ -48,18 +50,9 @@ load (electrode_positions, 'elePos')
     cellInfo = getCellInfo(spatData);
     corecorded = cellInfo(:,4);   
 
-%obtain clusters 
+%obtain clusters - load saved output from class_cells 
 
-%     [cluster1,cluster2,cluster3,cluster4] = makeClusters(spatData);
-    
-%     NewCluster1 = transpose(cluster1);
-%     NewCluster2 = transpose(cluster2);
-%     NewCluster3 = transpose(cluster3);
-%     NewCluster4 = transpose(cluster4);
-%     
-%     clusters = {NewCluster3};%{NewCluster1,NewCluster2,NewCluster3,NewCluster4}; %array of cluster names  
-
-    [DS2_amplitude,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data, electrode_positions);
+%     [DS2_amplitude,wfPC_clusters, DG_ExCluster, InCluster] = class_cells(data, electrode_positions);
 
 %     AboveDS2 =[];
 %     BelowDS2 =[];
@@ -78,18 +71,20 @@ load (electrode_positions, 'elePos')
 
     cluster1 =[];
     cluster2 =[];
-    for ii = 1: length(wfPC_clusters)
-        if wfPC_clusters(ii) == 1 
-            cluster1 = [cluster1;DG_ExCluster(ii)]; 
-        elseif wfPC_clusters(ii) == 2
+    for ii = 1: length(PCA2_clusters)
+        if PCA2_clusters(ii) == 2 %granule cells go here and will always be the first pages of maps 
+%             if max_meanRate(ii) < 0.5 %temporary rate filter for granule cell cluster 
+                cluster1 = [cluster1;DG_ExCluster(ii)]; 
+%             else 
+%             end
+        elseif PCA2_clusters(ii) == 1
             cluster2 = [cluster2;DG_ExCluster(ii)];
 
         end
     end 
-
+    
     clusters = {cluster1, cluster2};
 
-%     clusters = {InCluster};
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
 % least spatial based on the SI_spat score. 
@@ -137,12 +132,12 @@ load (electrode_positions, 'elePos')
             if mod(it_clu, 5) == 0
                 %save the figures with the right names
                 if itC == 1
-                    cluster = 'Above DS2 Inversion';
+                    cluster = 'Putatve Granule';
                 elseif itC == 2
-                    cluster = 'Below DS2 Inversion';
+                    cluster = 'Putative Mossy';
                 end
                 fig_count = fig_count +1;
-                %savefig(hFig, [cluster ': Group ' num2str(fig_count) '.fig'])
+                savefig(hFig, [writeDir '/' cluster ': Group ' num2str(fig_count) '.fig'])
             end
         end
         fig_count = 0; 

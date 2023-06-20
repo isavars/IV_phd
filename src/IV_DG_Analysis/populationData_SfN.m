@@ -89,10 +89,25 @@ function populationData_SfN(spatData)
         end
         SI_spat = meanSI;
 
-    % make clusters
+%     % make clusters
+% 
+%     [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
+%     
 
-    [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
-          
+    load('PCA2_clusters_from_WF1_AMR_BI_CCC_new.mat', 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
+         
+        %make clusters from PCA2_clusters keeping old naming convention for
+        %convenience in running the old code. 
+        cluster2 =[];
+        cluster3 =[]; %keeping og naming convention for a second to see if this code runs 
+        for ii = 1: length(PCA2_clusters)
+            if PCA2_clusters(ii) == 2
+                cluster3 = [cluster3;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
+            elseif PCA2_clusters(ii) == 1
+                cluster2 = [cluster2;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
+    
+            end
+        end 
 %make parent figure with axes to be filled in
     
     hFig = gra_multiplot(3, 6, 'figborder', [2 1 1 1]);
@@ -106,12 +121,12 @@ function populationData_SfN(spatData)
     firingRates = [];
     SI_scores = [];
 
-    %make clusters
-    [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
+%     %make clusters
+%     [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
 
 %   age binning 
 
-    ageBins   =  [17 31]; %[18 23]; list of age bins each spanning from col1:col2 [17 20; 22 23; 27 31];
+    ageBins   =  [17 20]; %[18 23]; list of age bins each spanning from col1:col2 [17 20; 22 23; 27 31];
     
     for itAge=1:size(ageBins,1)
          
@@ -142,10 +157,10 @@ function populationData_SfN(spatData)
            
 
         %making bar graphs or boxplots for everything  
-            MeanRatec1 = mean(meanMeanRate(cluster1));
+%             MeanRatec1 = mean(meanMeanRate(cluster1));
             MeanRatec2 = mean(meanMeanRate(cluster2));
             MeanRatec3 = mean(meanMeanRate(cluster3));
-            MeanRatec4 = mean(meanMeanRate(cluster4));
+%             MeanRatec4 = mean(meanMeanRate(cluster4));
 
 %             x = categorical({'C2','C3'});%'C1',,'C4'});
 %             y = [MeanRatec2 MeanRatec3];%MeanRatec1  MeanRatec4
