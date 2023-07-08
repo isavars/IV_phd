@@ -16,7 +16,7 @@ function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 
 load (data, 'spatData')
 load (electrode_positions, 'elePos')
-load (clusters, 'PCA2_clusters', 'DG_ExCluster')
+load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -83,7 +83,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster')
         end
     end 
     
-    clusters = {cluster1, cluster2};
+    clusters = {cluster1, cluster2};%, cluster2};
 
 
 % create ranking of spatiallity in cluster and arrange from most spatial to

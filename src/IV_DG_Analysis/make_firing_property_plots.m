@@ -47,7 +47,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         burstIndex_clu = burstIndex (cluster{itC});
 %         co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
     
-        %loop over spatData and asign excitatory cells to age bins
+        %loop over spatData and assign excitatory cells to age bins
     
         %gather age data from cellInfo 
         cellInfo = getCellInfo(spatData);
@@ -174,12 +174,12 @@ function KW_for_age_groups(age_bins, age, properties, property_names)
         end
     
         % Perform the Kruskal-Wallis test
-        [p, ~, stats] = kruskalwallis(data_vector, group_vector, 'off');
+        [p, ~, stats] = kruskalwallis(data_vector, group_vector, 'off')
         fprintf('Kruskal-Wallis test for %s: p = %.4f\n', property_names{i}, p);
         
         figure;
         % Post hoc test (e.g., pairwise comparisons)
-        c = multcompare(stats, 'CType', 'dunn-sidak');  % Pairwise comparison with Dunn-Sidak correction
+%         c = multcompare(stats, 'CType', 'dunn-sidak');  % Pairwise comparison with Dunn-Sidak correction
     end  
 
 end 

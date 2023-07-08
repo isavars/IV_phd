@@ -61,7 +61,7 @@ function spatialCorrelation_SfN(spatData)
 %make clusters
 [cluster1,cluster2,cluster3,cluster4,cluster5] = makeClusters(spatData);
 
-load('PCA2_clusters_from_WF1_AMR_BI_CCC.mat', 'PCA2_clusters', 'DG_ExCluster') %,'CA3_ExCluster') 
+load('PCA2_clusters_from_WF1_AMR_BI_CCC_new.mat', 'PCA2_clusters', 'DG_ExCluster') %,'CA3_ExCluster') 
 
     %make clusters from PCA2_clusters keeping old naming convention for
     %convenience in running the old code. 
@@ -94,7 +94,7 @@ NOVfieldNumC3 = [];
 
 %   age binning 
 
-    ageBins   =  [17 20]; %list of age bins each spanning from col1:col2
+    ageBins   =  [21 31]; %list of age bins each spanning from col1:col2
     
     for itAge=1:size(ageBins,1)
         

@@ -35,17 +35,17 @@ load(data, 'spatData')
         famCount = 0;
         
         for itCell= 1: height(spatData)
-            for itTrial = 1: width(spatData.env)
-                if contains(cast(spatData.env(itCell,itTrial),'char'),'fam')
+            for itTrial = 1: width(env)
+                if contains(cast(env(itCell,itTrial),'char'),'fam')
                     FamIndT(itCell,itTrial) = itTrial;
                     famCount = famCount + 1;
                     if famCount <= maxFam
                          FamInd(itCell,famCount)= transpose(nonzeros(FamIndT(itCell,itTrial)));
                     end
-                elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'nov')
+                elseif strcmp(cast(env(itCell,itTrial),'char'),'nov')
                     NovInd(itCell,itTrial) = itTrial;
                     NovInd = nonzeros(NovInd);
-                elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'diff')
+                elseif strcmp(cast(env(itCell,itTrial),'char'),'diff')
                     DiffInd(itCell,itTrial) = itTrial;
                     DiffInd = nonzeros(DiffInd);
                 end 
@@ -64,18 +64,18 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
      
     %make clusters from PCA2_clusters keeping old naming convention for
     %convenience in running the old code. 
-    cluster2 =[];
-    cluster3 =[]; %keeping og naming convention for a second to see if this code runs 
+    mossy =[];
+    granule =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
         if PCA2_clusters(ii) == 2
-            cluster3 = [cluster3;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
+            granule = [granule;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_latest - 2 is gc and 1 is mc for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
         elseif PCA2_clusters(ii) == 1
-            cluster2 = [cluster2;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
+            mossy = [mossy;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
 
         end
     end 
 
-%     cluster3 = CA3_ExCluster;
+      cluster3 = mossy;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -97,8 +97,6 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
             else
             end
         end
-        Newcluster2 = ismember(cluster2,ages_indexes_in_spatData); 
-        cluster2 = cluster2(Newcluster2);
         Newcluster3 = ismember(cluster3,ages_indexes_in_spatData);
         cluster3 = cluster3(Newcluster3);
       
@@ -126,79 +124,95 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
               else
               end
          end
-         famOverlap3 = famOverlap3(~isnan(famOverlap3)).';
-         novOverlap3 = novOverlap3(~isnan(novOverlap3)).';
-         diffOverlap3 = diffOverlap3(~isnan(diffOverlap3)).';         
-         FAMOverlapC3 = mean(famOverlap3);
-         NOVOverlapC3 = mean(novOverlap3);
-         DIFFOverlapC3 = mean(diffOverlap3);
-         FAMErrC3 = std(famOverlap3)/sqrt(length(cluster3));
-         NOVErrC3 = std(novOverlap3)/sqrt(length(cluster3));
-         DIFFErrC3 = std(diffOverlap3)/sqrt(length(cluster3));
-                  
+        famOverlap3 = famOverlap3.';
+        novOverlap3 = novOverlap3.';
+        diffOverlap3 = diffOverlap3.';
+        
+        % Find indices where any of the arrays have a NaN
+        nanIndices = isnan(famOverlap3) | isnan(novOverlap3) | isnan(diffOverlap3);        
+        % Remove those indices from each array
+        famOverlap3(nanIndices) = [];
+        novOverlap3(nanIndices) = [];
+        diffOverlap3(nanIndices) = [];  
+
+        FAMOverlapC3 = mean(famOverlap3);
+        NOVOverlapC3 = mean(novOverlap3);
+        DIFFOverlapC3 = mean(diffOverlap3);
+        FAMErrC3 = std(famOverlap3)/sqrt(length(cluster3));
+        NOVErrC3 = std(novOverlap3)/sqrt(length(cluster3));
+        DIFFErrC3 = std(diffOverlap3)/sqrt(length(cluster3));
+
+        %make Agebin titles 
+
+        if itAge == 1
+            AgeBin = 'Pre-wean';
+        else 
+            AgeBin = 'Post-wean';
+        end         
 
         CellCount3 = length(famOverlap3) %used for adding N number to plots 
 
         figure()
-        x = categorical({'FamXFam','FamXNov1','FamXNov2'});
+        x = categorical({'FAM vs FAM','FAM vs NOV1','FAM vs NOV2'});
         y = [FAMOverlapC3 DIFFOverlapC3 NOVOverlapC3];%; FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4];
         errors = [ FAMErrC3 DIFFErrC3 NOVErrC3]; %; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];
 %          xticks = ({strcat('GCs (',num2str(CellCount2),')'),strcat('MCs (',num2str(CellCount3),')')}); %strcat('INs (',num2str(CellCount1),')'),,strcat('C4(',num2str(CellCount4),')')});
 %         errorBars = gra_groupedbars(y, errors);
 %         errorBars = set(gca,'xticklabels', xticks);
         RateOver= bar(x,y);
+        set(gca, 'FontSize', 16)
         hold on
             er = errorbar(x,y,errors,errors);    
             er.Color = [0 0 0];                            
             er.LineStyle = 'none';  
         hold off
-        title(strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); %r',num2str(ratBins(itRat,1)),': put this back in when you fix rat binning 
-            ylabel('Rate Overlap Score')
-            xlabel('Cell Type (N)')
+        title(strcat(AgeBin,': P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); %r',num2str(ratBins(itRat,1)),': put this back in when you fix rat binning 
+            ylabel('Rate Overlap Score','FontSize', 16)
+%             xlabel('Cell Type (N)')
         
-         figure()
-            y = mean(SI_spat(cluster3)) %looks like these were uncommented so I could add means ans erros somewhere
-            errorC3 = transpose(std(SI_spat(cluster3))/sqrt(length(cluster3)));
-            errors = errorC3
-        %         xticks = ({strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))}); 
-        %         errorBars = gra_groupedbars(y, errors);
-        %         errorBars = set(gca,'xticklabels', xticks);
-            bar(y)
-            title(strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); 
-                ylabel('Spatial Information Score')
-                xlabel('Age')
+%          figure()
+%             y = mean(SI_spat(cluster3)) %looks like these were uncommented so I could add means ans erros somewhere
+%             errorC3 = transpose(std(SI_spat(cluster3))/sqrt(length(cluster3)));
+%             errors = errorC3
+%         %         xticks = ({strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))}); 
+%         %         errorBars = gra_groupedbars(y, errors);
+%         %         errorBars = set(gca,'xticklabels', xticks);
+%             bar(y)
+%             title(strcat('P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2)))); 
+%                 ylabel('Spatial Information Score')
+%                 xlabel('Age')
 
-        Age = [Age;itAge*ones(length(famOverlap3)*3,1)];%;repmat(ageBins(itAge,1),length(cluster3),1);repmat(ageBins(itAge,1),length(cluster3),1)];% *2 removed for KW atempt 
-        rateOverlaps = [rateOverlaps;famOverlap3 ;diffOverlap3;novOverlap3];%[rateOverlaps; novOverlap2 - famOverlap2];%[famOverlap2 ;novOverlap2];%[rateOverlaps;famOverlap3 ,novOverlap3]%
-        Environment = [Environment;ones(length(famOverlap3),1); 2*ones(length(famOverlap3),1);3*ones(length(famOverlap3),1)];
-         %Environment = [repmat('Fam',length(famOverlap3),1);repmat('diff',length(cluster3),1);repmat('Nov', length(novOverlap3),1)];
-%         Environment = [Environment;repmat('Fam',length(cluster3),1);repmat('diff',length(cluster3),1);repmat('Nov', length(cluster3),1)];
-        %Clusters = {'C2';'C2';'C3';'C3';'C4';'C4'};
-
-
+%         Age = [Age;itAge*ones(length(famOverlap3)*3,1)];
+%         Environment = [Environment;ones(length(famOverlap3),1); 2*ones(length(famOverlap3),1);3*ones(length(famOverlap3),1)];
+         
+%         %prep parameters for mixed anova 
+%         famOverlap3 = atanh(famOverlap3);% to make it parametric for mixed anova
+%         novOverlap3 = atanh(novOverlap3);
+%         diffOverlap3 = atanh(diffOverlap3);
+        
+        rateOverlaps = [rateOverlaps;famOverlap3,diffOverlap3,novOverlap3];
+        if itAge == 1
+            AgeBin1Subjects = length(famOverlap3);
+        elseif itAge == 2
+            AgeBin2Subjects = length(famOverlap3);
+        elseif itAge == 3
+            AgeBin3Subjects = length(famOverlap3);       
+        end
+        %reset values used
         meanRate = spatData.meanRate;
-        burstIndex = spatData.burstIndex;
         cluster3 = original_cluster;
+
 
     end  
 
-    
-    %testing to see if its parametric 
-     rateOverlaps = atanh(rateOverlaps); % Fisher transform the data
-%     [~,p] = kstest(rateOverlaps);
-%     if p < 0.05
-%         fprintf('Data are not normally distributed.\n');
-%     else
-%         fprintf('Data are normally distributed.\n');
-%     end
-%     
-%   
-   [p,tbl,stats]=anovan(rateOverlaps,{Age,Environment},'model','interaction', 'varnames',{'Age','Environment'});
-   
-%     [p,tbl,stats]= kruskalwallis(rateOverlaps, Age);
-    c = multcompare(stats)
 
-    
+    %ive decided to use simple mixed anova from mathworks 
+    datamat = rateOverlaps;
+    within_factor_names = {'Environment'};
+    between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1)];% 3 * ones(AgeBin3Subjects, 1)];% ]; %
+    between_factor_names = {'Age'};
+    [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
+
 
 end        
 

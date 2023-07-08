@@ -5,10 +5,11 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %interneuron, granule cell, mossy cell and CA3 pyramidal cell. 
 
     % TO DO:
-    %       - incorporate probe type into makeTetShankChan!!
-    %       - CA3 cluster needs to be made - preliminary CA3 cluster will
-    %       just be Exitatory Cells on CA3 labeled shanks (based on elePos)
+    %       - modify single shank probe tetshank chan to make the shanks
+    %       the 8 conacts around a 'tet' instead of just 4 set octrodes 
     %       -make all the steps that arent subfuntions into subfunctions
+    %       -rem sleep CA3 sorting works as intended but doesn's seem to be
+    %       separating the cells well. 
 
     %load spatial Data 
     load (data, 'spatData');
@@ -24,7 +25,8 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     nSpks = spatData.nSpks;
     SpkTs = spatData.SpkTs;
     TP_latency = mean(spatData.TP_latency,2);
-    %load electrode Positions 
+    %load electrode Positions -rename this to metadata or add the option
+    %for elePos or a different metadata file to be used. 
     load (electrodes, 'elePos');
     rat_id = elePos.rat_ID;% cellstr(elePos.rat_id); the output from new_elePos is slightly different to elePos
     dataset_elePos = (elePos.dataset);
@@ -43,7 +45,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     
     %get tetrode to shank and channel mapping to be used by cluster feature
     %functions - needs to work for single shank probes also
-    [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,probe_type);
+    [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,elePos);
 
 
     %step 1 - filter by gross histology postion CA3 vs DG 
@@ -54,6 +56,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     
      DG_cluster = [];
      CA3_cluster = []; 
+     AMB_cluster = []; 
 
      for it_cells = 1: height(spatData)
          for it_ep = 1: height(elePos)
@@ -63,6 +66,8 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
                     DG_cluster = [DG_cluster;it_cells];
                  elseif strcmp(hist_label, "CA3")
                     CA3_cluster = [CA3_cluster;it_cells]; 
+                 elseif strcmp(hist_label, "AMB") %adding ambiguous cells 
+                    AMB_cluster = [AMB_cluster;it_cells];                 
                  end
              end
          end
@@ -75,8 +80,41 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %step 2 - filter by excitatory vs inhibitory using trough-to-peak
     %measure, mean rate, and maybe burst index from Knierim. 
     
-    [DG_ExCluster, CA3_ExCluster] = interneuron_filter(WFs,TP_latency,awakeMeanRate,max_burstIndex,DG_cluster,CA3_cluster);
-    
+    [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency,awakeMeanRate,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
+
+    %filter ambiguous clusters for CA3 vs DG cells using rem sleep - so in
+    %S&B they show GCs have a much higher firing rate in NREM than wake or
+    %REM - but its significantly different bettween all three mossy cells
+    %are almost the same for all three but a bit more active in sleep and
+    %CA3 cells are more active in wake and nrem than rem 
+
+    %use AMB_ExCluster - loop through and sort cells into DG vs CA3 based
+    %on mean rate differences between wake, nrem and rem. 
+
+    %make sleep variables 
+    %wake 
+    wakeMeanRate = spatData.meanRate(:,1:5); %maximum mean rate in wake trials 
+    for it_mr = 1: height (spatData)
+        wakeMeanRate(it_mr,:) = max(wakeMeanRate(it_mr,:),[],'omitnan');
+    end
+    wakeMeanRate = wakeMeanRate(:,1); 
+   
+    amb_wakeMeanRate = wakeMeanRate(AMB_ExCluster);%wake 
+    amb_nremMeanRate = spatData.meanRate(AMB_ExCluster, 6); %select sleep trial
+    amb_remMeanRate = spatData.remMeanRate(AMB_ExCluster); %rem 
+
+    for it_amb = 1: length(AMB_ExCluster)
+        if amb_remMeanRate(it_amb)  < amb_wakeMeanRate(it_amb) && amb_remMeanRate(it_amb) < amb_nremMeanRate(it_amb) %behaves like a CA3 cell in wake vs sleep
+            %add index from AMB_ExCluster into CA3_ExCluster
+            CA3_ExCluster = [CA3_ExCluster;AMB_ExCluster(it_amb)]; 
+        else 
+            %add it to DG_ExCluster
+            DG_ExCluster = [DG_ExCluster;AMB_ExCluster(it_amb)];
+        end
+    end  
+    %you will need to sort the clusters in ascending order after 
+    DG_ExCluster = sort(DG_ExCluster);
+    CA3_ExCluster = sort(CA3_ExCluster); 
 
     %step 3 - Make position relative to DS2 (specifically DS2 direction
     %per shank as a discrete variable - maybe use more informed histology 
@@ -104,14 +142,6 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 
         [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms);
 
-    %step 5 - create sleep vs wake firing rate (rateChange) - needs to be
-    %indexed within the cluster for DG or CA3 and withought Interneurons -
-    %need to make a DG_exCluster and a CA3_exCluster - or do this
-    %differently with one big loop 
-
-        awakeMeanRate = awakeMeanRate(DG_ExCluster);
-        sleepMeanRate = meanRate (DG_ExCluster,end);
-        rateChange = awakeMeanRate ./ sleepMeanRate;
     
     %step 6 - make "slope" from Knierim group (slope of best fit line 
     % through normalized, sorted waveform peaks of the four tetrode wires)
@@ -126,6 +156,15 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
             coeffs = polyfit(x, normalized_peaks, 1);
             slope(i) = abs(coeffs(1));
         end
+
+    %step 6- create sleep vs wake firing rate (rateChange) - needs to be
+    %indexed within the cluster for DG or CA3 and withought Interneurons -
+    %need to make a DG_exCluster and a CA3_exCluster - or do this
+    %differently with one big loop 
+
+        awakeMeanRate = awakeMeanRate(DG_ExCluster);
+        sleepMeanRate = meanRate (DG_ExCluster,end);
+        rateChange = awakeMeanRate ./ sleepMeanRate;
 
     %step 7 - make co-recorded cells -for a given cell how many other cells
     %were recorded on that shank or tetrode - overlap tetrodes might
@@ -173,7 +212,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [ wfPC1 ,awakeMeanRate, burstIndex, DS2_orientations];%        % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [ wfPC1 ,awakeMeanRate, burstIndex, co_recorded_shank_capped];%        % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -183,7 +222,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
         [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
         %save clusters 
-        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster')
+        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2')
         
 
     %testing plots - this needs to be a sub function at the very bottom 
@@ -209,10 +248,10 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     
     
     figure;
-    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
-    xlabel("wfPC1")
-    ylabel("DS2 orientations")
-    set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'});
+    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'gr', '.', 12);
+    xlabel("wfPC1",'FontSize', 16)
+    ylabel("DS2 orientations",'FontSize', 16)
+    set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'},'FontSize', 16);
 
     figure;
     gscatter(awakeMeanRate, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
@@ -299,30 +338,34 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 
 end 
 
-function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,probe_type) 
+function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,elePos) 
     %make tetrode labels from CellIDs in spatData - needs to be adaptable
-    %for single shank probe data also!!
+    %for single shank probe data also!!   
+
 
         cellInfo = getCellInfo(spatData);
         tet = cellInfo(:,2);
-
-        % create channel index per tetrode 'tet_index' which is a tetrode by
-        % channel identity array for each type of probe 
-        %if probe_type(it) == 4
-            tet_index = zeros(8, 4); % create an 8x4 matrix of zeros
-            tet_index(1:2:end, :) = repmat(1:8:25, 4, 1).' + repmat(0:2:6, 4, 1); % fill odd-numbered rows with odd numbers
-            tet_index(2:2:end, :) = repmat(2:8:26, 4, 1).' + repmat(0:2:6, 4, 1); % fill even-numbered rows with even numbers
-            overlap = repmat (0:8:24,4,1).' + repmat (5:8,4,1);%overlap tetrodes are the bottom 4 contacts which are closer to each other 
-            tet_index = [tet_index; overlap]; % + 1 overlap per octrode
-        
-
-%         elseif probe_type(it) == 1
-%         end 
-
         tetShankChan = zeros(length(tet),3);
         shank_channels = zeros(length(tet),8); %this is going to contain the channels that are on each shank to be used by electrode position measure
-        % this needs to be per probe type
-        for it_tet = 1: length(tet)
+        % this is kept the same per probe type - in the single shank probes
+        % cells recorded on the same shank will equal in the same 8 nearby 
+        % contacts 
+        for it_tet = 1: length(tet)            
+            % create channel index per tetrode 'tet_index' which is a tetrode by
+            % channel identity array for each type of probe 
+            if elePos.probe_type(spatData.animal(it_tet) == elePos.rat_ID) == 4 %this creates an index for the row in elepos containing the rat that the cell came from in tet. 
+                tet_index = zeros(8, 4); % create an 8x4 matrix of zeros
+                tet_index(1:2:end, :) = repmat(1:8:25, 4, 1).' + repmat(0:2:6, 4, 1); % fill odd-numbered rows with odd numbers
+                tet_index(2:2:end, :) = repmat(2:8:26, 4, 1).' + repmat(0:2:6, 4, 1); % fill even-numbered rows with even numbers
+                overlap = repmat (0:8:24,4,1).' + repmat (5:8,4,1);%overlap tetrodes are the bottom 4 contacts which are closer to each other 
+                tet_index = [tet_index; overlap]; % + 1 overlap per octrode               
+            elseif elePos.probe_type(spatData.animal(it_tet) == elePos.rat_ID) == 1
+                tet_index = 1:32;
+                tet_index = reshape(tet_index,4,8).';
+                overlap_rows = repmat (0:8:24,4,1).' + repmat (3:6,4,1);
+                % Add the overlapping rows to the matrix
+                tet_index = [tet_index; overlap_rows];
+            end 
             tetShankChan(it_tet,1) = tet(it_tet);
             tetShankChan(it_tet,3) = tet_index(tet(it_tet),max_wf_chan(it_tet));
             if tet(it_tet) == 1 || tet(it_tet) == 2 || tet(it_tet) == 9
@@ -341,7 +384,7 @@ function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,
         end
 end 
 
-function [DG_ExCluster, CA3_ExCluster] = interneuron_filter(WFs,TP_latency, awakeMeanRate,max_burstIndex, DG_cluster,CA3_cluster)
+function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency, awakeMeanRate,max_burstIndex, DG_cluster,CA3_cluster, AMB_cluster)
         %make the inhibitory and excitatory clusters for CA3 and DG subgroups
         %-mantaining row numbers from spatData
         InCluster1 = []; %narrow wf INs 
@@ -363,6 +406,7 @@ function [DG_ExCluster, CA3_ExCluster] = interneuron_filter(WFs,TP_latency, awak
         % cutting) 
         DG_ExCluster = DG_cluster(ismember(DG_cluster, ExCluster));
         CA3_ExCluster = CA3_cluster(ismember(CA3_cluster, ExCluster)); %just save this variable 
+        AMB_ExCluster = AMB_cluster(ismember(AMB_cluster, ExCluster)); 
  end
 
 function [wfPC1,wfPC2] = waveformPCA(DG_ExCluster,waveforms)

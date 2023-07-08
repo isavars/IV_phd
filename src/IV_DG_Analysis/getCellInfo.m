@@ -1,9 +1,8 @@
 function [cellInfo] = getCellInfo(spatData)
 
 %getCellInfo gets the tetrode number, cell number, age and rat ID from the
-%data file being used and produces a table with the information
-%adding histology labels to this array - might have to turn it into a table
-%to append a column of strings? 
+%cell ID in spatData being used and produces a matrix with the information
+%it also makes a co_recorded_cell_count.
 
     cellInfo = spatData.cellID;
     
