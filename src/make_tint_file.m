@@ -30,7 +30,7 @@ time = reshape( typecast(time,'int8'),4,[]);
 %% Convert signal to 50 8-bit samples
 voltages = tetrode_mat(:,2:end)';
 
-scaleMax = 100; % can hardcode because its always the same for me  but check if this value makes sene - DACQinfo.scaleMax(tetrode_number,:);
+scaleMax = 100; % can hardcode because its always the same for me  but check if this value makes sense - DACQinfo.scaleMax(tetrode_number,:);
 DACQ_sample = nan(size(voltages));
 % Adapt conversion of each channel depending on gain used in DACQ
 for i = 1:4

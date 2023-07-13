@@ -16,6 +16,7 @@ function splitCutFileFromMaster( mode,tetrodes,varargin )
 %           tetrodes - numeric array of tetrodes to split (any in [1 2 3 4
 %                      5 6 7 8 9 10 11 12 13 14 15 16]); if left empty/not supplied then we will
 %                      assume the full set of available tetrodes 
+% - THE WAY YOU RUN THIS IS:   splitCutFileFromMaster('hc',[1 2 3 4 5 6 7 8 9 10 11 12]) IV  20/06/23
 %
 % Optional inputs/analysis parameters (supply as " ,'fieldname',value, " comma-separated list) :
 %
@@ -32,16 +33,16 @@ function splitCutFileFromMaster( mode,tetrodes,varargin )
 
 %% Parameters
 % specify directory with .set files
-prms.dir = 'S:\DBIO_TKFC_SKGTIVA\recording_data\r1166\r1166_220624\tintFilesr1166';%'S:\DBIO_tkfcLab_DATA\IsabellaV\recording_data\Adults\r933\'; %Z:\lmuessig\!postDoc\recording_data\CA1\; 'D:\tempRecordingData\r579\'; 'D:\tempAdultData\r678\'
+prms.dir = 'S:\DBIO_TKFC_SKGTIVA\thesis_data\tetrode_data\r804\';%' %Z:\lmuessig\!postDoc\recording_data\CA1\; 
 % specify names of trial files
-prms.Tnames = {'220624a_famBox','220624eh_sleepHP'}; % first and last trial in sequence _famBox _sleepHP _sqTrack '190406c_famBox','190406d_sleepHP','190406e_CCE','190406f_sleepHP','201218c_famBox','201218d_CCE','201218e_famBox',
+prms.Tnames = {'190528a_famBox','190528d_famBox'}; % first and last trial in sequence _famBox _sleepHP _sqTrack 
 prms.TNames2exclude = {''};%{'201218f_sleepHP'}; % trials that should be excluded
 % specify tetrodes  
-prms.tets = []; % if empty, will do all files, otherwise can also specify numbers as array (needs to be row vector)
+prms.tets = [5 6 7 8 9 10 11 12]; % if empty, will do all files, otherwise can also specify numbers as array (needs to be row vector)
 % string which identifies master cut files
-prms.masterCutID =   '_allTrials'; %'allTrials_sqTrack'; 'allLTM; 'allReact'; 'allTrials_novLinTrack'; 'allLinear';'DGCA3';
+prms.masterCutID = '_alltrials_'; %'allTrials_sqTrack'; 'allLTM; 'allReact'; 'allTrials_novLinTrack'; 'allLinear';'DGCA3';
 prms.cutAddStrMaster = []; %'fin'; 
-prms.cutFileExt =  'fin';%'firstcut';%extra str after tet Number in cutfile - leave blank if your naming system is different
+prms.cutFileExt =  '';%'firstcut';%extra str after tet Number in cutfile - leave blank if your naming system is different
 % added to cut file name (after ..._(tetN)
 prms.addStr =  '_DGCA3';%''; '_sqTrack'; '_LTM'; '_react';'_novLinTrack'; '_phaseShift';
 

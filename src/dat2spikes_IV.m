@@ -38,20 +38,26 @@ function [] = dat2spikes_IV(read_dir, mapping, trial_num, write_dir)
     voltages = filtfilt(b,a, voltages);
     %     voltages = voltages([3000:600.0625*48000],:);
     
-    %get data into exact shape for tara's code 
-    %group voltage data into tetrodes 
-    % take one side vertically as a tetrode 
-    tet_index = zeros(8, 4); % create an 8x4 matrix of zeros
-    tet_index(1:2:end, :) = repmat(1:8:25, 4, 1).' + repmat(0:2:6, 4, 1); % fill odd-numbered rows with odd numbers
-    tet_index(2:2:end, :) = repmat(2:8:26, 4, 1).' + repmat(0:2:6, 4, 1); % fill even-numbered rows with even numbers
 
-    %overlap tetrodes are the bottom 4 contacts which are closer to each
-    %other 
-    overlap = repmat (0:8:24,4,1).' + repmat (5:8,4,1);
-    tet_index = [tet_index; overlap]; % + 1 overlap per octrode 
+    %group voltage data into tetrodes for either single or multishank 
+    if strcmp(mapping, 'map_multi_opp_plugtop_final.mat')
+        % take one side vertically as a tetrode 
+        tet_index = zeros(8, 4); % create an 8x4 matrix of zeros
+        tet_index(1:2:end, :) = repmat(1:8:25, 4, 1).' + repmat(0:2:6, 4, 1); % fill odd-numbered rows with odd numbers
+        tet_index(2:2:end, :) = repmat(2:8:26, 4, 1).' + repmat(0:2:6, 4, 1); % fill even-numbered rows with even numbers
     
+        %overlap tetrodes are the bottom 4 contacts which are closer to each
+        %other 
+        overlap = repmat (0:8:24,4,1).' + repmat (5:8,4,1);
+        tet_index = [tet_index; overlap]; % + 1 overlap per octrode 
+    elseif strcmp(mapping, 'map_single_opp_plugtop_final.mat') || strcmp(mapping, 'map_single_same_plugbottom_final.mat')
+        tet_index = 1:32;
+        tet_index = reshape(tet_index,4,8).';
+        overlap_rows = repmat (0:8:24,4,1).' + repmat (3:6,4,1);
+        % Add the overlapping rows to the matrix
+        tet_index = [tet_index; overlap_rows];
+    end 
     % run voltage traces through extract_spikes
-
     % loop through the tetrodes and make spike_mat and spike_count for each to
     % be used by makeTetrodes
         

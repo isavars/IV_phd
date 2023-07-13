@@ -1,4 +1,4 @@
- function [ResT] = getSpatData(varargin)
+function [ResT] = getSpatData(varargin)
 % Place and directional spatial firing properties %
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

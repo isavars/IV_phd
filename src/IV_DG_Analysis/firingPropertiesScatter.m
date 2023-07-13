@@ -1,6 +1,6 @@
-function firingPropertiesScatter () 
+function firingPropertiesScatter (data) 
 
-load ('allRats_DGCA3_spatData.mat', 'spatData')
+load (data, 'spatData')
 
 %gather data from spatData
 

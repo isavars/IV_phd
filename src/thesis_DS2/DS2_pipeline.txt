@@ -1,0 +1,22 @@
+The DS2 making pipleine currently reads egf files from sleep trials in a dataset and 
+	returns DS2 info tables which are loaded into electrode position tables 
+	also containing metadata about individual rats.
+
+Uses the following code: 
+
+gather data: 
+-sleepData from getSleepData - for every dataset you want to get DS2 info from 
+-spatData from getSpatData - for every dataset you want to get DS2 info from 
+-rat_info table - metadata per rat that doesn't change 
+
+main pipeline:
+-run_get_DS2_wrapper 
+-get_DS2_info
+-get_DS2_from_egf
+-extract_DS2_from_egf
+
+ISSUES:
+
+1. for mapping files the code needs to be run from the MatLabData folder
+	change to filepath for the individual maps - add extra input in first function 
+	- make sure these are stored somewhere logical. 

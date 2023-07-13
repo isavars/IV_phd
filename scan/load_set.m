@@ -45,7 +45,7 @@ rtn.ymax = str2double(getValue(txt, 'ymax'));
 rtn.sw_version = getValue(txt, 'sw_version');   % Don't STR2DOUBLE - can be 4.00a
 rtn.trial_time = getValue(txt, 'trial_time');
 rtn.ADC_fullscale_mv = str2double(getValue(txt, 'ADC_fullscale_mv'));
-temp = getValue(txt, 'duration');  rtn.duration = str2double(temp(1:end-1));
+temp = getValue(txt, 'duration'); rtn.duration = str2double(temp(1:end));%IV removed -1 causing problems for trials with more than 3 digit durations
 % Identify the generation of DACQ %
 if rtn.ADC_fullscale_mv == 1500
     rtn.dacq_version = 'usb';
@@ -58,7 +58,7 @@ end
 % Trial Duration %
 if strcmp(rtn.dacq_version, 'legacy_1')
     temp = getValue(txt, 'duration'); % DACQ1 stores '900 s'
-    rtn.duration = str2double(temp(1:end-1));
+    rtn.duration = str2double(temp(1:end));%IV removed -1 causing problems for trials with more than 3 digit durations
 else
     rtn.duration = str2double(getValue(txt, 'duration'));
 end
