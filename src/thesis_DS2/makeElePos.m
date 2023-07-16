@@ -17,7 +17,7 @@ function [new_elePos]= makeElePos(rat_information, readDir)
     new_elePos.DS2_mean_amplitude = repmat(nan, height(fileName), 32);
     new_elePos.DS2_peak_to_trough_amplitude = repmat(nan, height(fileName), 32);
     new_elePos.DS2_slope = repmat(nan, height(fileName), 32);  
-    new_elePos.DS2_spike_times = cell(height(fileName), 32); 
+    new_elePos.DS2_spike_times = cell(height(fileName),1); 
     %loop through all the rat IDs in elePos and add data for first few rows
     % Get the list of files in the directory
     fileList = dir(fullfile(readDir, '*.mat'));
@@ -58,8 +58,9 @@ function [new_elePos]= makeElePos(rat_information, readDir)
         new_elePos.DS2_peak_to_trough_amplitude(i,:) = DS2_info.DS2_peak_to_trough_amplitude';
         new_elePos.DS2_slope(i,:) = DS2_info.DS2_slope';
         new_elePos.DS2_rate(i,:) = DS2_info.DS2_rate(1);
-        for jj = 1:32
-            new_elePos.DS2_spike_times{jj} = DS2_info.DS2_spike_times;
-        end
+        new_elePos.DS2_spike_times{i} = DS2_info.DS2_spike_times(1);
+%         for jj = 1:32
+%             new_elePos.DS2_spike_times{jj} = DS2_info.DS2_spike_times;
+%         end
     end
 end 

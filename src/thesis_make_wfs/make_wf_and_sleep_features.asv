@@ -1,4 +1,4 @@
-function make_wf_and_sleep_features(read_dir, spatial_data, sleep_data)
+function spatData = make_wf_and_sleep_features(read_dir, spatial_data, sleep_data)
 %this function loops through the all waveform matrices per
 %experiment and makes features from the waveform data that can be loaded into
 %spatData variables so they are the length of spatData. 
@@ -46,13 +46,12 @@ function make_wf_and_sleep_features(read_dir, spatial_data, sleep_data)
     for ii= 1:height(spatData)
         sleep_trial = strcmp(string(spatData.env(ii,:)),'sleep');
         sleep_idx = find(sleep_trial,1);
-        spatData.trialDur(:,sleep_idx) = swsTrialDuration; 
-        spatData.SpkTs(:,sleep_idx) = swsSpikeTimes;
-        spatData.meanRate(:,sleep_idx) = swsMeanRate; % mean rate 
-        spatData.nSpks(:,sleep_idx) = swsNSpks; % number of spikes    
-        spatData.burstIndex(:,sleep_idx) = swsBurstIndex;
+        spatData.trialDur(ii,sleep_idx) = swsTrialDuration(ii); 
+        spatData.SpkTs(ii,sleep_idx) = swsSpikeTimes(ii);
+        spatData.meanRate(ii,sleep_idx) = swsMeanRate(ii); % mean rate 
+        spatData.nSpks(ii,sleep_idx) = swsNSpks(ii); % number of spikes    
+        spatData.burstIndex(ii,sleep_idx) = swsBurstIndex(ii);
     end
-
     
     %rem sleep info
     
@@ -63,7 +62,7 @@ function make_wf_and_sleep_features(read_dir, spatial_data, sleep_data)
     spatData.remBurstIndex = remBurstIndex;
 
 
-    %save(spatial_data,"spatData");
+%     save(spatial_data,"spatData");
 
 end
 
@@ -107,7 +106,7 @@ function [waveforms, wf_means, max_wf_channel, TP_latency] = make_wf_features(re
                     load(filename,'exp_wfs');
                     %make waveform means
                     waves{cell_it,trial_it} = mean(exp_wfs{cell_it,trial_it},3);
-                else %this is uncecarrasy since the values are already in the table but adding so it runs as is 
+                else %this is unecessary since the values are already in the table but adding so it runs as is 
                     waves{cell_it,trial_it} = spatData.wf_means{cell_it,trial_it};
                 end
                 %find the mean waveform for the channel with maximum
@@ -167,10 +166,14 @@ function [swsTrialDuration, sws_SpikeTimes, remTrialDuration, rem_SpikeTimes, sw
        sws_epochInds = sleepData.SWS_epochs{sleepData_idx};
        rem_epochInds = sleepData.REM_epochs{sleepData_idx};
 
-       sleep_trial = strcmp(string(spatData.env(ii,:)),'sleep');
-       sleep_idx = find(sleep_trial,1);
+       %find index for sleep trial 
+       sleep_trial = strcmp(string(spatData.env(itS,:)),'sleep');
+       sleep_idx = find(sleep_trial,2);
+       if size(sleep_idx,2) > 1 
+           sleep_idx = sleep_idx(2); %dealing with trial with more than one sleep
+       end
        spikeTimes = spatData.SpkTs{itS,sleep_idx}; %spike times per cell for sleep trial (to be cut) 
-        
+    
        %make durations per dataset 
        swsTrialDuration = [swsTrialDuration; sleepData.duration(sleepData_idx)];  
        remTrialDuration = [remTrialDuration; sleepData.REM_duration(sleepData_idx)];
@@ -197,7 +200,8 @@ function [swsTrialDuration, sws_SpikeTimes, remTrialDuration, rem_SpikeTimes, sw
 
        sws_SpikeTimes{itS} = swsSpikeTimes;
        rem_SpikeTimes{itS} = remSpikeTimes;
-    end 
 
+
+    end   
    
 end 

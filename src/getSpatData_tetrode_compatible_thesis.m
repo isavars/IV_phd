@@ -169,7 +169,7 @@ for ii=1:length(SD.selData)
           
         
         for kk=1:length(trialsToUse)             %% In main loop, kk = iterator for trial %%
-          if isempty(ResT.env(cellCount,kk)) || ~strcmp(string(ResT.env(cellCount,kk)), 'sleep') %|| ResT.env(cellCount,kk) ~= envList(6)  
+          if ~strcmp(string(ResT.env(cellCount,kk)), 'sleep') %|| ResT.env(cellCount,kk) ~= envList(6)  
             if prms.scaleToFitSquare
                 [RMWinR,RMWinC] = deal( 1:25 );
             else

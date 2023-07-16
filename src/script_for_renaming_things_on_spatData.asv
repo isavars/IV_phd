@@ -1,4 +1,4 @@
-%adaptabel inputs
+%adaptable inputs
 old_string = 'Adult';
 new_string = 'P40';
 table = sleepData;
