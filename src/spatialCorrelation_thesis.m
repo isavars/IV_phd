@@ -57,15 +57,15 @@ function spatialCorrelation_thesis(spatData,clusters)
     mossy =[];
     granule =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 1
-            mossy = [mossy;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 1 is mc and 2 is gc 
-        elseif PCA2_clusters(ii) == 2
+        if PCA2_clusters(ii) == 2
+            mossy = [mossy;DG_ExCluster(ii)]; % for WF1_AMR_BI_CCC_test its 1 for mc and 2 for gc %for WF1_AMR_BI_CCC_new - 1 is mc and 2 is gc 
+        elseif PCA2_clusters(ii) == 1
             granule = [granule;DG_ExCluster(ii)];% for WF1_AMR_BI_CCC_r1099 - 1 is gc and 2 is mc 
 
         end
     end 
     
-    cluster =  granule; %CA3_ExCluster; % mossy; %
+    cluster =  granule; %granule; %CA3_ExCluster; % 
     clustername =  {'Granule Cells'}; %{'CA3 Pyramidal Cells'}; % {'Mossy Cells'};%
     orange = [1, 0.5, 0];
     color = orange;
@@ -80,7 +80,7 @@ function spatialCorrelation_thesis(spatData,clusters)
     
     %   age binning 
     
-     ageBins   =  [17 20; 21 32]; % list of age bins each spanning from col1:col2
+     ageBins   =  [17 20; 21 31]; % list of age bins each spanning from col1:col2
      original_cluster = cluster; 
         
      for itAge=1:size(ageBins,1)
@@ -101,7 +101,7 @@ function spatialCorrelation_thesis(spatData,clusters)
             cluster_count = cluster3;
             %remove non-spatial cells from the cluster 
             for itClu = 1: length (cluster3) 
-                if any(SI_spat(cluster3(itClu),:) > 0.2) || any(nSpks(cluster3(itClu),1:5) > 100)
+                if any(SI_spat(cluster3(itClu),1:5) > 0.2) || any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
                     cluster3(itClu) = cluster3(itClu);
                 else
                     cluster3(itClu) = 0;

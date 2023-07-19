@@ -207,33 +207,3 @@ end
 %         end
 
 
-%ds2 amp plot should really be in its own function but saving here 
-
-%     %load elePos -might not be needed 
-%     load(electrodes, 'elePos')
-%     %load useful parts from elePos
-%     age = elePos.age;
-%     ds2_max_amplitude = nanmax(abs(elePos.DS2_max_amplitude), [], 2);%make 1 max ds2_amplitude value per row of elePos
-% 
-%     %plots of DS2 amplitude over age 
-%     % Calculate mean and range per age
-%     [age_unique, ~, age_idx] = unique(age);
-%     mean_ds2_max_amplitude = splitapply(@nanmean, ds2_max_amplitude, age_idx);
-%     range_ds2_max_amplitude = splitapply(@(x) max(x) - min(x), ds2_max_amplitude, age_idx);
-%     
-%     % Plot mean with error bars
-%     figure;
-%     scatter(age_unique, mean_ds2_max_amplitude, 'filled', 'g');
-%     hold on;
-%     errorbar(age_unique, mean_ds2_max_amplitude, range_ds2_max_amplitude, 'LineStyle', 'none', 'Color', 'k');
-%     hold off;
-%     
-%     % Adjust x-axis range
-%     xMin = min(age_unique) - 1;
-%     xMax = max(age_unique) + 1;
-%     xlim([xMin, xMax]);
-%     
-%     % Add labels and title
-%     xlabel('Age');
-%     ylabel('Mean DS2 Max Amplitude');
-%     title('DS2 Max Amplitude over Age');

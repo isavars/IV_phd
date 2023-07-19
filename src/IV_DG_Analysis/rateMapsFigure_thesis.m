@@ -7,8 +7,6 @@ function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 % TO DO: 
 % 1. make more adaptable to different data sets when picking which rate map 
 % to delete - i could just do this on illustrator. 
-% 2. add a trial duration feature (this will be in spat data) to use
-% in the AC making bit when its not 900s long (so for sleep) 
 
 
 % obtaining variables from spatData Table (I want to replace this with a
@@ -27,6 +25,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     SpkTs = spatData.SpkTs;
     waveforms = spatData.waveforms;
     nSpks = spatData.nSpks;
+    trialDur = spatData.trialDur;
     
 
     meanRate(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN; %waht is this for? 
@@ -39,12 +38,15 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
 %sleep and for that i need an adaptable trial length feature. - create
 
     for itSp = 1: length (nSpks) 
-        [~, maxSpksPos] = max(nSpks(itSp,1:5));
+        [~, maxSpksPos] = max(nSpks(itSp,1:5)); %change back to all
         STs(itSp,:) = SpkTs(itSp, maxSpksPos);
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
+        trial_duration (itSp,:) = trialDur(itSp, maxSpksPos);
         max_meanRate(itSp,:) = meanRate (itSp, maxSpksPos);
     end
     
+%convert trial duraiton to integer value so it works in AC calculation
+trial_duration = round(trial_duration);
     
 %gather age data from cellInfo 
     cellInfo = getCellInfo(spatData);
@@ -61,8 +63,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
 %             if DS2_amplitude(ii) <= 0 
 %                 AboveDS2 = [AboveDS2;DG_ExCluster(ii)]; 
 %             elseif DS2_amplitude(ii) > 0
-%                 BelowDS2 = [BelowDS2;DG_ExCluster(ii)];
-%     
+%                 BelowDS2 = [BelowDS2;DG_ExCluster(ii)];     
 %             end
 %         end
 %     end 
@@ -72,14 +73,13 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     cluster1 =[];
     cluster2 =[];
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 2 %granule cells go here and will always be the first pages of maps 
+        if PCA2_clusters(ii) == 1 %granule cells go here and will always be the first pages of maps 
 %             if max_meanRate(ii) < 0.5 %temporary rate filter for granule cell cluster 
                 cluster1 = [cluster1;DG_ExCluster(ii)]; 
 %             else 
 %             end
-        elseif PCA2_clusters(ii) == 1
+        elseif PCA2_clusters(ii) == 2
             cluster2 = [cluster2;DG_ExCluster(ii)];
-
         end
     end 
     
@@ -122,6 +122,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
                     gra_plotmap(rMap{clusters{itC}(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
             end
             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+%             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,trial_duration(clusters{itC}(it_clu)),'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
                 axis(axArr(axRowCount,7),[0 75 -100 200]);
             plot(axArr(axRowCount,7), cell2mat(WFs(clusters{itC}(it_clu))));
                 axis(axArr(axRowCount,7),[0 75 -100 200]); 

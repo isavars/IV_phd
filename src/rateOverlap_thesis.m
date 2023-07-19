@@ -67,15 +67,15 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     mossy =[];
     granule =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 2
+        if PCA2_clusters(ii) == 1
             granule = [granule;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_latest - 2 is gc and 1 is mc for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
-        elseif PCA2_clusters(ii) == 1
+        elseif PCA2_clusters(ii) == 2
             mossy = [mossy;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
 
         end
     end 
 
-      cluster3 = mossy;%granule;%CA3_ExCluster;
+    cluster3 = granule ;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -84,7 +84,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     ageBins   =  [17 20; 21 31];  %list of age bins each spanning from col1:col2
    
     original_cluster = cluster3; %no idea why this is here and down below
-    
+    length(cluster3)
     for itAge=1:size(ageBins,1)
         
         indAge = age>=ageBins(itAge,1) & age<=ageBins(itAge,2); % index for current age bin
@@ -99,6 +99,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
         Newcluster3 = ismember(cluster3,ages_indexes_in_spatData);
         cluster3 = cluster3(Newcluster3);
+
       
          %do rate overlap for comparisons between the three environments 
          famOverlap3 = nan(1,length(cluster3));
