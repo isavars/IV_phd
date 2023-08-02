@@ -82,6 +82,8 @@ while thr_cr_idx <= length(thr_cr_numind)
         elseif rat_age < 20
             age_based_spread_cutoff = 0.2;
         end 
+        age_based_spread_cutoff = 0.2; %to let as many in to not add an artificial developmental effect (for amplitude ds2 plot)
+
         if  passes_waveform_shape_filter && mean(first_samps) < max_val*0.30  &&  mean(last_samps) < max_val*0.30 && spread > age_based_spread_cutoff % This is artefact rejection test - can modify these numbers            
             % Assume it is a real spike and store
             spike_count = spike_count + 1;           

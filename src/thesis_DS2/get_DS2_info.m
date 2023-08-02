@@ -9,8 +9,9 @@ function [DS2_info] = get_DS2_info(eeg_data, probe_type, writeDir, sws_table)
 % INPUT - eeg_data - file path to egf file from sleep trial, probe_type - 1
 % single opp, 2 - multi opp, 3 - single same, 
 %TO DO 
-% 1) add eeg_channel identities to DS2 so eegs can be matched to tetrodes
-% later in analysis. 
+% 1) channel_depth measure is added wrong it needs to match the numbers on
+% the firt column of the map not 1-32 - but this feature isnt carried to
+% elePos so don't need to troubleshoot for now 
 
     %get trial name for saving files (probably there's a better way to do
     %this) 
@@ -20,6 +21,15 @@ function [DS2_info] = get_DS2_info(eeg_data, probe_type, writeDir, sws_table)
     %load SWS data from table to get parameters 
     load(sws_table, 'sleepData');  
     curr_trial = find(sleepData.trialname == sleep_trial);
+
+    %dealing with two trials named the same h.c fix later 
+    if length(curr_trial) > 1
+        if strcmp(extractBefore(eeg_data, ['\' sleep_trial]), 'S:\DBIO_TKFC_SKGTIVA\thesis_data\Longitudinal_spatial_plus_sleep\r1151')
+            curr_trial = curr_trial(1);
+        else 
+            curr_trial = curr_trial(2);
+        end 
+    end 
     dataset = char(sleepData.dataset(curr_trial));
     
     %call get_DS2 to get all the necessary bits 
@@ -67,7 +77,7 @@ function [DS2_info] = get_DS2_info(eeg_data, probe_type, writeDir, sws_table)
     
     % insert data into the table 
     if probe_type == 1 
-        load('single_shank_probe_map.mat','single_shank_probe_map')
+        load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\single_shank_probe_map.mat','single_shank_probe_map')
         for it_ch = 1:32 
             DS2_info.channel_depth(it_ch) = single_shank_probe_map(it_ch,3);%check that mapping makes sense - does this need to be converted? 
             %make features from selected spike - this big should be a
@@ -85,7 +95,7 @@ function [DS2_info] = get_DS2_info(eeg_data, probe_type, writeDir, sws_table)
             end
         end
     elseif probe_type == 2
-        load('multi_shank_probe_map.mat','multi_shank_probe_map')
+        load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\multi_shank_probe_map.mat','multi_shank_probe_map')
         for it_ch = 1:32              
             DS2_info.channel_depth(it_ch) = multi_shank_probe_map(it_ch,3); 
             DS2_info.DS2_max_amplitude(it_ch) = max_amplitude(it_ch); % fill amplitudes per channel just by indexing the voltages 
@@ -107,7 +117,7 @@ function [DS2_info] = get_DS2_info(eeg_data, probe_type, writeDir, sws_table)
             % that 0 in um using 'channel_depth'
         end
     elseif probe_type ==3 
-        load('single_shank_same_probe_map_final.mat','single_shank_probe_map')
+        load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\single_shank_same_probe_map_final.mat','single_shank_probe_map')
         for it_ch = 1:32
             DS2_info.channel_depth(it_ch) = single_shank_probe_map(it_ch,3);
             %make amplitude and label features from selected spike 

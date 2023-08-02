@@ -22,7 +22,7 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
 
     sample_rate = 4800; %in Hz
     spikeThreshold = 0.5;%1.14 Senzai and Buzsaki Threshold - this can be adjusted
-    spikes_to_plot = 1; %this is just the best spike to make nice plots
+    spikes_to_plot = 5; %this is just the best spike to make nice plots
 %     best_DS2s = 50; %number of DS2s in spike_mat you want to include in DS2 info summary table (can change to all by becoming size(spike_mat,3) and being placed after spike_mat is made
     
     %load SWS data from table 
@@ -83,7 +83,7 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
     else 
     end
     %convert to mV 
-    voltage_trace = eegs_S.*(1.5 ./ 2^15); % divided by bit reolution x voltage on scope 
+    voltage_trace = eegs_S.*(1.5 ./ 2^15); % divided by bit resolution x voltage on scope 
 
     %cut down sleep trials to sleep only  
     %find the sws epoch inds from the correct sleep file in the table 
@@ -120,11 +120,9 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
         [~, spike_idx_sorted_by_spread] = sort(spike_mat(1, 2, :), 'descend'); 
         %make best_DS2s examples to be averaged in amplitude measures 
         num_spikes = size(spike_mat,3); %3rd dimension of the spikematrix is the number of spikes
-        if num_spikes >= 100
-            best_DS2s = round(num_spikes*0.2);% top 10 percentile of spikes will be the best quality - proportionate to amount detected 
-        elseif num_spikes < 100 && num_spikes >= 20
-            best_DS2s = 20;
-        elseif num_spikes < 20
+        if num_spikes >= 3
+            best_DS2s = round(num_spikes*0.2);% top 20 percentile of spikes will be the best quality - proportionate to amount detected 
+        else %basically if there are 2 or 1 spike it will use them. 
             best_DS2s = num_spikes;
         end 
         %make ds2_rate for analysis - numspikes/trial duration in seconds 
@@ -132,19 +130,20 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
         ds2_rate = num_spikes/trial_duration; 
         %load probe maps and probe data to be used in figure making functions 
         if probe_type == 1
-            probe_data = load('single_shank_probe_map.mat');
+            probe_data = load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\single_shank_probe_map.mat');
             new_eeg_chans = [];
         elseif probe_type == 2
-            probe_data = load('multi_shank_probe_map.mat');
+            probe_data = load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\multi_shank_probe_map.mat');
             new_eeg_chans = [];
         elseif probe_type == 3
-            probe_data = load('single_shank_same_probe_map_final.mat'); 
+            probe_data = load('S:\DBIO_TKFC_SKGTIVA\MATLAB\MatLabData\single_shank_same_probe_map_final.mat'); 
             new_eeg_chans = [];
         elseif probe_type == 4 
             %load eeg_chans and chop down spike_mat if the data is not from probes 
             eeg_chans = sleepData.eeg_channels(curr_trial); %maybe can use these to color the plots     
             [new_eeg_chans, spike_mat] = remove_channel_repeats(eeg_chans, spike_mat);
             probe_data = [];
+            probe_idx = [];
         end
         if ~isempty(probe_data)
             [probe_idx, probe_depth, unique_depths] = process_probe_data(probe_data);
@@ -175,7 +174,7 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
              end 
 
             %call feature funciton 
-            [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope]= make_DS2_features(spike_mat, spike_idx_for_best_spikes);
+            [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope, spike_mat]= make_DS2_features(spike_mat,spike_idx_for_best_spikes , probe_idx);%spike_idx_sorted_by_spread([2 4]);%,
 
         else %make features and figures from average of availabe spikes if there are very few spikes
             spike_idx_for_best_spikes = [];
@@ -198,7 +197,7 @@ function [max_amplitude, mean_amplitude, fig1, fig2, ds2_rate, peak_to_trough_am
                 end  
             end
             %call feature funciton 
-            [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope]= make_DS2_features(spike_mat, spike_idx_for_best_spikes);
+            [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope, spike_mat]= make_DS2_features(spike_mat, spike_idx_for_best_spikes, probe_idx);
         end 
 
    else  %produce empty values to fill that DS2_info 
@@ -237,6 +236,13 @@ function [fig1, fig2]= plot_single_shank(probe_depth, unique_depths, spike_idx, 
        a.Color = cmap(i, :);
     end
     title(dataset)
+    depth_str = cell(1, 32);    
+    for i = 1:32
+        depth_str{i} = num2str(probe_depth(i), '%.1f');
+    end
+    legend(depth_str);
+    ylim([-1.5, 1.5])
+    xlim([0 700])
 
     % line plot 
     selected_spike = nan(3, 32);
@@ -274,7 +280,10 @@ function [fig1] = plot_tetrodes(spike_mat, spike_idx, dataset, new_eeg_chans)
         a.Color = cmap(i, :);
     end
     title(dataset)
+    ylim([-1.5, 2])
+    xlim([0 700])
     legend(num2str(new_eeg_chans_tet))
+
 end 
 
 function [fig1] = plot_multi_shank(probe_depth, unique_depths, spike_idx, probe_idx, spike_mat, dataset)
@@ -333,13 +342,21 @@ function [fig2]= plot_ds2_inversion_line_plot(probe_depth, spike_idx, probe_idx,
     end
 end
 
-function [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope]= make_DS2_features(spike_mat, spike_idx_for_best_spikes)
+function [max_amplitude, mean_amplitude, peak_to_trough_amplitude, peak_to_trough_slope, spike_mat]= make_DS2_features(spike_mat, spike_idx_for_best_spikes, probe_idx)
         %make max_ amplitude, mean_amplitude, peak_to_trough amplitude and
         %slope means for x many DS2s found - need to be 1x32 for DS2_info
+        %spike_mat needs to be reordered by map for each probe type and
+        %then outputed to be saved properly down the line
 
         %make num_eegs so its compatible with different amounts of eegs 
         num_eegs = size(spike_mat,1); %check this is good 
-        
+
+
+        %reorder spike_mat based on probe_idx 
+        if num_eegs == 32 
+            spike_mat = spike_mat(probe_idx, :, :);
+        end 
+       
         %loop over best DS2s and produce mean values of all the features
         max_amplitudes = [];
         mean_amplitudes = [];

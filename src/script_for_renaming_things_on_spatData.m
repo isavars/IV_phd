@@ -1,6 +1,6 @@
 %adaptable inputs
-old_string = '190525_P20';
-new_string = '190525_P22';
+old_string = 'Adult';
+new_string = 'P40';
 table = spatData;
 
 % Get the number of rows in the table

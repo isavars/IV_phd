@@ -46,15 +46,16 @@ function spatData = make_wf_and_sleep_features(read_dir, spatial_data, sleep_dat
     for ii= 1:height(spatData)
         sleep_trial = strcmp(string(spatData.env(ii,:)),'sleep');
         sleep_idx = find(sleep_trial,1);
-        spatData.trialDur(ii,sleep_idx) = swsTrialDuration(ii); 
+%         spatData.trialDur(ii,sleep_idx) = swsTrialDuration(ii); 
         spatData.SpkTs(ii,sleep_idx) = swsSpikeTimes(ii);
         spatData.meanRate(ii,sleep_idx) = swsMeanRate(ii); % mean rate 
         spatData.nSpks(ii,sleep_idx) = swsNSpks(ii); % number of spikes    
         spatData.burstIndex(ii,sleep_idx) = swsBurstIndex(ii);
     end
     
-    %rem sleep info
-    
+    %rem sleep info and sws trial duration
+    spatData.swsTrialDur = swsTrialDuration;
+
     spatData.remTrialDur = remTrialDuration; 
     spatData.remSpkTs = remSpikeTimes; %make sure these are a cell array 
     spatData.remMeanRate = remMeanRate; % mean rate 

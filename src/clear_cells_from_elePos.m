@@ -1,4 +1,4 @@
-rows_to_clear = [1,2,14, 15, 26, 27, 28, 29, 30, 31, 32, 34,35,36,37];
+rows_to_clear = [1,2,14, 15, 26, 27, 28, 29, 30, 31, 32, 34,35,36,37]; % requires visual inspection of DS2 figures for each trial. 
 
 for i = rows_to_clear
     elePos.DS2_spike_times{i} = {};
