@@ -92,13 +92,14 @@ function make_DS2_development_plots(electrodes)
     
         % Add a line connecting the dots
         plot(this_rat_age, this_rat_amplitude, 'Color', colors(i, :));
+
     
         % Add this rat's ID to the labels for the legend
         labels{i} = unique_rat_IDs{i};
     end
     
-    % Create the legend
-    legend(labels);
+%     % Create the legend
+%     legend(labels);
     
     % Add labels and title
     xlabel('Age');
@@ -141,13 +142,89 @@ function make_DS2_development_plots(electrodes)
     end
     
     % Create the legend
-    legend(labels);
+    %legend(labels);
     
     % Add labels and title
     xlabel('Age');
     ylabel('DS2 firing rate');
     title('DS2 firing rate over Age per Rat');
     hold off;
+    
+    %stats 
+
+    % Create a table with your data
+    data_table = table(age, rat_ID, ds2_amplitude, 'VariableNames', {'Age', 'Rat', 'Amplitude'});
+    
+    % Fit the linear mixed-effects model
+    lme = fitlme(data_table, 'Amplitude ~ 1 + Age + (1 + Age | Rat)'); %this includes random intercepts which means the baseline amplitudes of each rat are considered to be different. 
+    
+    % Display the results
+    disp(lme);
+
+    % Create a table with your data for rate 
+    data_table = table(age, rat_ID, ds2_rate, 'VariableNames', {'Age', 'Rat', 'Rate'});
+    
+    % Fit the linear mixed-effects model
+    lme = fitlme(data_table, 'Rate ~ 1 + Age + (1 + Age | Rat)'); %this includes random intercepts which means the baseline amplitudes of each rat are considered to be different. 
+    
+    % Display the results
+    disp(lme);
+
+    %checking to see data is normally distributed
+
+    % Obtain residuals
+    residuals = lme.Residuals.Raw;
+    
+    % Create a histogram to visualize the distribution of the residuals
+    figure;
+    histogram(residuals, 'Normalization', 'pdf');
+    hold on;
+    
+    % Compare the histogram with a normal distribution
+    x = linspace(min(residuals), max(residuals), 100);
+    y = normpdf(x, mean(residuals), std(residuals));
+    plot(x, y, 'LineWidth', 2);
+    
+    % Add labels and title
+    xlabel('Residuals');
+    ylabel('Probability Density');
+    title('Distribution of Residuals');
+    hold off;
+    
+    % Create a scatter plot of residuals vs. fitted values
+    figure;
+    scatter(lme.fitted, residuals);
+    
+    % Add labels and title
+    xlabel('Fitted values');
+    ylabel('Residuals');
+    title('Residuals vs. Fitted Values');
+
+    predicted_values = predict(lme);
+    % 1. Plot residuals against predicted values (for homoscedasticity)
+    figure;
+    scatter(predicted_values, residuals);
+    xlabel('Predicted Values');
+    ylabel('Residuals');
+    title('Residuals vs Predicted Values');
+    
+    % If the plot shows a funnel shape (residuals fanning out as the predicted 
+    % values increase), it's a sign that the assumption of homoscedasticity might be violated.
+    
+    % 2. Q-Q plot of residuals (for normality)
+    figure;
+    qqplot(residuals);
+    title('Q-Q Plot of Residuals');
+    
+    % If the points in this plot lie along the reference line, it's a good sign 
+    % that the residuals are normally distributed. If they deviate substantially, 
+    % the assumption of normality might be violated.
+    
+ 
+    % If the autocorrelations are near zero for all lags, it's a good sign that 
+    % the assumption of independence is satisfied. If there are one or more lags 
+    % with autocorrelations that are substantially different from zero, the 
+    % assumption of independence might be violated.
 
 
 
