@@ -23,8 +23,12 @@ load(shuffles, 'SI_shuffles')
             if ~isempty(matching_row)
                 originalScore = spatData.SI_spat(itC,itT);
                 shuffledScores = SI_shuffles.SI{matching_row,itT};
-                %test if all shuffled scores are less than the original score
-                if all(shuffledScores < originalScore)
+                percentage = 90; % for 95%, use 90 for 90%, etc.
+
+                thresholdScore = prctile(shuffledScores, percentage);
+
+                %test if shuffled scores are less than the original score
+                if originalScore > thresholdScore %all(shuffledScores < originalScore) %do different percentiles of the og score (95th,90th and 75th)
                     spatData.sig_SI(itC,itT) = true;
                 else
                     spatData.sig_SI(itC,itT) = false;

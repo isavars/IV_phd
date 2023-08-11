@@ -20,14 +20,13 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     %load useful parts from spatData
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
-    animal = spatData.animal;
     dataset = spatData.dataset;
     wf_means = spatData.wf_means;
     waveforms = spatData.waveforms; %waveforms is created from the mean wf with the maximum amplitude - need to keep channel id for it to use DS2 labels
     max_wf_chan = spatData.max_wf_channel; %this is per trial needs to be one value 
     nSpks = spatData.nSpks;
     SpkTs = spatData.SpkTs;
-    TP_latency = mean(spatData.TP_latency,2);
+    %TP_latency = nanmean(spatData.TP_latency,2);
     %load electrode Positions -rename this to metadata or add the option
     %for elePos or a different metadata file to be used. 
     load (electrodes, 'elePos');
@@ -39,15 +38,15 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     %chose trial with most spikes to use wfs, spike times, mean firing rate, max wf channel from it 
     for itSp = 1: length (nSpks) 
         [~, maxSpksPos] = nanmax(nSpks(itSp,:)); 
-        WFs (itSp,:) = wf_means(itSp, maxSpksPos); %gets best wf from wf means
+%         WFs (itSp,:) = wf_means(itSp, maxSpksPos); %gets best wf from wf means
         max_wf_chan(itSp,:) = max_wf_chan(itSp,maxSpksPos); 
         max_waveforms(itSp,:) = waveforms(itSp,maxSpksPos); 
         STs (itSp,:) = SpkTs(itSp, maxSpksPos); %gets the spiketimes from the same trial to calculate the burst index
         max_burstIndex(itSp,:) = burstIndex(itSp, maxSpksPos); 
+        TP_latency(itSp,:) = spatData.TP_latency(itSp, maxSpksPos);
 %         max_awakeMeanRate (itSp,:) = meanRate(itSp, maxSpksPos); %gets the wake mean firing rate for the most active wake trial (doesn this make sense?)
     end
-   
-    
+       
     %make an equivalent of shank_channels is just tetrode the cell was
     %recorded on - is there an issue with 64 channels vs 32 anywhere? 
     cellInfo = getCellInfo(spatData);
@@ -57,7 +56,8 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 
     maxWakeMeanRate= zeros(size(spatData,1),1);
     sleep_idx = zeros(size(spatData,1),1);
-    awakeMeanRate = zeros(size(spatData,1),1);
+    awakeMeanRate_all = zeros(size(spatData,1),1);
+    wake_idx = cell(size(spatData,1),1);
     for itCl = 1: height(spatData)
         sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
         sleep_idx_temp = find(sleep_trials);
@@ -71,8 +71,12 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         wake_trials = nov_trials + fam_trials; 
         %datasets have different numbers of wake trials 
         wake_idx_temp = find(wake_trials);
+        wake_idx{itCl} = wake_idx_temp;
         maxWakeMeanRate(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
-        awakeMeanRate(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        %make WFs from wake trials only
+        [~, maxPos] = nanmax(nSpks(itCl,wake_idx_temp));
+        WFs(itCl,:) = wf_means(itCl,maxPos); %wfs come form wake trials 
     end 
      
 
@@ -103,9 +107,10 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 
     %step 2 - filter by excitatory vs inhibitory using trough-to-peak
     %measure, mean rate, and maybe burst index from Knierim.     
-    [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency,awakeMeanRate,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
+    [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2, low_narrow] = interneuron_filter(WFs,TP_latency,awakeMeanRate_all,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
 
-        %filter ambiguous clusters for CA3 vs DG cells using rem sleep - so in
+    
+    %filter ambiguous clusters for CA3 vs DG cells using rem sleep - so in
         %S&B they show GCs have a much higher firing rate in NREM than wake or
         %REM - but its significantly different bettween all three mossy cells
         %are almost the same for all three but a bit more active in sleep and
@@ -135,19 +140,24 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         %rem rate 
         amb_remMeanRate = spatData.remMeanRate(AMB_ExCluster); %rem 
      
-        for it_amb = 1: length(AMB_ExCluster)
-            if amb_remMeanRate(it_amb)  < amb_wakeMeanRate(it_amb) && amb_remMeanRate(it_amb) < amb_nremMeanRate(it_amb) %behaves like a CA3 cell in wake vs sleep
-                %add index from AMB_ExCluster into CA3_ExCluster
-                CA3_ExCluster = [CA3_ExCluster;AMB_ExCluster(it_amb)]; 
-            else 
-                %add it to DG_ExCluster
-                DG_ExCluster = [DG_ExCluster;AMB_ExCluster(it_amb)];
-            end
-        end  
-        %you will need to sort the clusters in ascending order after 
-        DG_ExCluster = sort(DG_ExCluster);
-        CA3_ExCluster = sort(CA3_ExCluster); 
+%         for it_amb = 1: length(AMB_ExCluster)
+%             if amb_remMeanRate(it_amb)  < amb_wakeMeanRate(it_amb) && amb_remMeanRate(it_amb) < amb_nremMeanRate(it_amb) %behaves like a CA3 cell in wake vs sleep
+%                 %add index from AMB_ExCluster into CA3_ExCluster
+%                 CA3_ExCluster = [CA3_ExCluster;AMB_ExCluster(it_amb)]; 
+%             else 
+%                 %add it to DG_ExCluster
+%                 DG_ExCluster = [DG_ExCluster;AMB_ExCluster(it_amb)];
+%             end
+%         end  
+%         %you will need to sort the clusters in ascending order after 
+%         DG_ExCluster = sort(DG_ExCluster);
+%         CA3_ExCluster = sort(CA3_ExCluster); 
+        
+        %atempt to sort amb clusters (new labels)
+         [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_active_per_tet(spatData, AMB_cluster,cellInfo, DG_ExCluster,amb_wakeMeanRate, sleep_idx, wake_idx );
 
+
+    
     %step 3 - Position relative to DS2 (specifically DS2 direction
     %per shank as a discrete variable - for a given channel number produces
     %all the channel numbers on the same shank and decide if its pointing 
@@ -158,6 +168,10 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     
         DS2_orientations = get_DS2_orientations(spatData,DG_ExCluster,elePos, tets, option);
         DS2_orientations = DS2_orientations(DS2_orientations~=0);
+
+        %filter amb cluster using DS2 orientation 
+
+
 
     %step 4 - create wf_PCA features (call waveformPCA, run as a
     %subfunciton) need to know what outputs from the pca are the right ones
@@ -185,7 +199,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     %need to make a DG_exCluster and a CA3_exCluster - or do this
     %differently with one big loop 
 
-        awakeMeanRate = awakeMeanRate(DG_ExCluster);
+        awakeMeanRate = awakeMeanRate_all(DG_ExCluster);
         sleepMeanRate = meanRate (DG_ExCluster,end);
         rateChange = awakeMeanRate ./ sleepMeanRate;
 
@@ -202,11 +216,19 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         %excitatory only like in Knierim (try this one on class_cells also)     
         %cut down spatData to Excitartory cells only and create index for
         %rows as you go
-        excitatory_rows = [];
-        deleted_rows =[];
+
         excitatory_spatData = spatData(DG_ExCluster,:);     
         co_recorded_tet_DG_ex_cell_info = getCellInfo(excitatory_spatData); %makes co_recorded_cells excitatory only 
         co_recorded_tet_DG_ex = co_recorded_tet_DG_ex_cell_info(:,4);
+
+        co_recorded_tet_DG_ex_capped = zeros(size(co_recorded_tet_DG_ex,1),1); 
+            for ii = 1:length(co_recorded_tet_DG_ex)
+                if co_recorded_tet_DG_ex(ii) >= 4 
+                    co_recorded_tet_DG_ex_capped(ii) = 4;
+                else 
+                    co_recorded_tet_DG_ex_capped(ii) = co_recorded_tet_DG_ex(ii);
+                end
+            end 
 
         co_recorded_tet_capped = zeros(size(co_recorded_tet_DG_all,1),1); 
         for ii = 1:length(co_recorded_tet)
@@ -216,8 +238,8 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
                 co_recorded_tet_capped(ii) = co_recorded_tet(ii);
             end
         end 
-        co_recorded_tet_capped = co_recorded_tet_capped'; %capped at 4 to reduce variance in the group provided by outliers 
-
+%         co_recorded_tet_capped = co_recorded_tet_capped'; %capped at 4 to reduce variance in the group provided by outliers 
+        co_recorded_tet_capped = co_recorded_tet_capped(DG_ExCluster);
     %step 8 - run a second PCA on the chosen features -output is PC1 to be
     %used in clustering and histogram showing the distribution. 
         
@@ -227,7 +249,10 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
             burstIndex = [burstIndex;(sum(diff(STs{it_DE}) <= 0.006))/(length(diff(STs{it_DE})))];% 0.008s produced the best bimodality 
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
-        data = [ wfPC1,awakeMeanRate, burstIndex, slope ];%, co_recorded_tet_DG_ex];% wfPC1        % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        
+        TP_lat = TP_latency(DG_ExCluster);
+
+        data = [ TP_lat, awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];%ratio_silent_or_active_per_tet];%,slope ];%, TP_lat];%, awakeMeanRate, wfPC1  co_recorded_tet_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -237,7 +262,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
         [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
         %save clusters 
-        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2')
+        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2', 'low_narrow')
         
 
     %testing plots - this needs to be a sub function at the very bottom 
@@ -277,12 +302,49 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         cluster = PCA2_clusters(ii); 
         plot(diff_pca_data(ii,:),'Color', colors{cluster});
     end
+    hold off;
 
+    %interneuron filter summary figure
+    % Initialize an array with the same size as your data.
+    groups = categorical(repmat("", size(TP_latency)));    
+    % Set the groups based on the index arrays.
+    groups(DG_ExCluster) = 'DG';
+    groups(AMB_ExCluster) = 'Unclassified';
+    groups(InCluster1) = 'InCluster1';
+    groups(InCluster2) = 'InCluster2';    
+    % Manually specify the order of the groups.
+    groups = reordercats(groups, {'InCluster1', 'InCluster2', 'DG', 'Unclassified'});    
+    % Define colors.
+    colors = [
+        0 0 1;   % dark blue for 'InCluster1'
+        0.4 0.4 1; % light blue for 'InCluster2'
+        0 1 0;   % green for 'DG'
+        1 0 0;   % red for 'CA3'
+    ];    
 
+    % Create the scatter plot.
+    figure;
+    gscatter(TP_latency, awakeMeanRate_all, groups, colors);
+    xlabel("Trough to Peak Latency (ms)",'FontSize', 16)
+    ylabel("Mean Firing Rate (Hz)",'FontSize', 16)
+    set(gca,'Yscale','log')
+    % Add a legend.
+    legend('InCluster1', 'InCluster2', 'DG', 'Unclassified');    
+
+    % Create the scatter plot.
+    figure;
+    gscatter(max_burstIndex, awakeMeanRate_all, groups, colors);
+    xlabel("Burst index",'FontSize', 16)
+    ylabel("Mean Firing Rate (Hz)",'FontSize', 16)
+    set(gca,'Xscale','log')
+    set(gca,'Yscale','log')
+    % Add a legend.
+    legend('InCluster1', 'InCluster2', 'DG', 'Unclassified');     
+    
     
     %plots for clustering features overlayed on DS2 orientations 
     figure;
-    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'gr', '.', 12);
+    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
     xlabel("wfPC1",'FontSize', 16)
     ylabel("DS2 orientations",'FontSize', 16)
     set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'},'FontSize', 16);
@@ -317,18 +379,19 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 
 end  
 
-function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency, awakeMeanRate,max_burstIndex, DG_cluster,CA3_cluster, AMB_cluster)
+function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2, low_narrow] = interneuron_filter(WFs,TP_latency, awakeMeanRate,max_burstIndex, DG_cluster,CA3_cluster, AMB_cluster)
         %make the inhibitory and excitatory clusters for CA3 and DG subgroups
         %-mantaining row numbers from spatData
         InCluster1 = []; %narrow wf INs 
         InCluster2 = []; %wide wf INs
+        low_narrow = []; %confunding cells 
         ExCluster = [];
         for itWF = 1: length (WFs)
-            if TP_latency(itWF) < 0.425 && awakeMeanRate(itWF) > 1.2 %max_burstIndex(itWF) > 0.05 %||  % this is letting some outliers in still add busrt Index cap? 
-                InCluster1 = [InCluster1;itWF]; 
-            elseif TP_latency(itWF) >= 0.425 && TP_latency(itWF) < 0.8 && awakeMeanRate(itWF) > 2 %&& max_burstIndex(itWF) > 0.01
-                InCluster2 = [InCluster2;itWF];
-            else 
+            if TP_latency(itWF) < 0.4 && awakeMeanRate(itWF) > 2 %&& max_burstIndex(itWF) < 0.1 %||  % this is letting some outliers in still add busrt Index cap? 
+                InCluster1 = [InCluster1;itWF]; % narrow wf ins 
+            elseif TP_latency(itWF) >= 0.4  && awakeMeanRate(itWF) > 1.5 && max_burstIndex(itWF) < 0.1 %
+                InCluster2 = [InCluster2;itWF]; %wide wf ins - this sorting should include burst index and im not sure why there's a cap of 0.8 ms on width here so removing for tets
+            else
                 ExCluster = [ExCluster;itWF]; 
             end            
         end 
@@ -382,13 +445,22 @@ function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = 
     for itPCA = 1: size(pca_data_no_trail,1)
         diff_pca_data = [diff_pca_data; diff(pca_data_no_trail(itPCA,maxShift:end),2)]; %inserted 1:80 for the .8 ms time window % better time window - maxShift:end
     end
-    [coeff,score] =  pca(diff_pca_data(:,:)); %only hc number here checking full wf to see how it looks 
-    w_PC1 = coeff(:,1);
-    w_PC2 = coeff(:,2);
+%     [coeff,score] =  pca(diff_pca_data(:,:)); %only hc number here checking full wf to see how it looks 
+%     w_PC1 = coeff(:,1);
+%     w_PC2 = coeff(:,2);
+%     % weight of the PCA
+%     wfPC1 = score(:,1);
+%     wfPC2 = score(:,2);
+    
+    %load PCA coeffs from probe data 
+    load ("/Users/isavars/Documents/phd_data/MatLabData/waveform_pca_coeffs_from_probes.mat", 'w_PC1', 'w_PC2')
+    w_PC1 = w_PC1(1:size(diff_pca_data,2));
+    w_PC2 = w_PC2(1:size(diff_pca_data,2));
 
-    % weight of the PCA
-    wfPC1 = score(:,1);
-    wfPC2 = score(:,2);
+    %lines to add instead of actually doing the pca 
+    xCentred = diff_pca_data - nanmean(diff_pca_data,1);
+    wfPC1 = xCentred/w_PC1';
+    wfPC2 = xCentred/w_PC2';
 
     %k-means on the 1st two PCs of the wfPCA - not using for clustering 
 %     
@@ -420,8 +492,12 @@ function [first_pc, second_pc] = class_PCA(data)
     awakeMeanRate = data(:, 2);
     log_normalized_awakeMeanRate = normalize(log1p(awakeMeanRate));
 
+    % Apply log normalization to BI
+    BI = data(:, 3);
+    log_normalized_BI = normalize(log1p(BI));
+
     % Combine the log-normalized feature with the rest of the data
-    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4),]; % data(:, 5)];
+    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, log_normalized_BI, data(:, 4)];% data(:, 3), data(:, 4)]; %, data(:, 5)];% ]; %
 
     % Normalize the data
     normalized_data = zscore(transformed_data);
@@ -523,9 +599,9 @@ function DS2_orientations = get_DS2_orientations(spatData, DG_ExCluster,elePos, 
                         DS2_orientations_option = [DS2_orientations_option;DS2_mean_amplitude_per_shank];
                     elseif option == 3 %fill in for slope - plot first to come up with cuttoffs 
                         DS2_mean_slope_per_shank = median(elePos.DS2_slope(it_ep,tet));
-                        if DS2_mean_slope_per_shank < -70
+                        if DS2_mean_slope_per_shank < -50
                             DS2_orientation = 1;
-                        elseif DS2_mean_slope_per_shank <= 0 || DS2_mean_slope_per_shank >= -70
+                        elseif DS2_mean_slope_per_shank <= 0 || DS2_mean_slope_per_shank >= -50
                             DS2_orientation = 2;
                         elseif DS2_mean_slope_per_shank > 0
                             DS2_orientation = 3;
@@ -569,3 +645,80 @@ function jitteredData = jitterCategorical(data)
     end
 end
 
+function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_active_per_tet(spatData, AMB_cluster,cellInfo, DG_ExCluster,amb_wakeMeanRate, sleep_idx, wake_idx )
+%this needs to read in cells from amb cluster and provide say if they are active in sleep only or at least one wake env 
+% then take the average mean firing rate of all cells on that tet and rank
+% them from low to high - introdicting cuttoffs where the ratio of active
+% in wake vs only active in sleep flips - that can be considered the hillus
+% and then when it filps back it can be considered CA3 - go per rat and do
+% all depths then see if it aligns with DS2 - can only spend time on this
+% if you find a moment. 
+
+    %itterate over cells and find if the cells are active in sleep only or
+    %in run trials
+    spatData_amb = spatData(DG_ExCluster,:);
+    %spatData_amb = spatData(AMB_cluster,:);
+    silent_or_active = zeros(height(spatData_amb),1);
+    for itC = 1: height(spatData_amb)
+        if all(spatData.nSpks(itC,wake_idx{itC}) < 75)
+            silent_or_active(itC) = 0; %active in sleep only
+        else 
+            silent_or_active(itC) = 1; %active in wake trial
+        end
+    end
+    %get the mean rate per tetrode 
+    meanRate_per_tet = zeros(height(spatData_amb),1);
+    ratio_silent_or_active_per_tet = zeros(height(spatData_amb),1);
+    %cellInfo = cellInfo(AMB_cluster,:);
+    cellInfo = cellInfo(DG_ExCluster,:);
+    for jj=1:length(cellInfo)
+        ID = cellInfo(jj, 1);
+        tet = cellInfo(jj, 2);
+        age = cellInfo(jj, 3);
+        dates = cellInfo(jj, 5);      
+        % Find indices of rows with the same ID, tet, age, and date
+        matchingIndices = find(cellInfo(:,1) == ID & cellInfo(:,2) == tet & cellInfo(:,3) == age & cellInfo(:,5) == dates);
+        %get mean rate per tet 
+        meanRate_per_tet(jj) = nanmean(spatData.meanRate(matchingIndices,sleep_idx(jj)));
+        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/sum(silent_or_active(matchingIndices) ==1);
+        if ratio_silent_or_active_per_tet(jj) == inf
+            ratio_silent_or_active_per_tet(jj) = 1;
+        end
+    end
+
+    
+    
+    %rank the tetrodes by mean rate and compara against proportion of acive
+    %vs silent - create DG vs CA3 labels for the tets 
+
+    %makes plot - but need to refine 
+    
+    % Get unique tet values
+    [uniqueTets, ~, tetIndices] = unique(meanRate_per_tet);
+    
+    % Initialize proportions arrays
+    prop0 = zeros(size(uniqueTets));
+    prop1 = zeros(size(uniqueTets));
+    
+    % Calculate proportions
+    for i = 1:length(uniqueTets)
+        currentTetIndices = tetIndices == i;
+        totalForCurrentTet = sum(currentTetIndices);
+        prop0(i) = sum(silent_or_active(currentTetIndices) == 0) / totalForCurrentTet;
+        prop1(i) = sum(silent_or_active(currentTetIndices) == 1) / totalForCurrentTet;
+    end
+    
+    % Create stacked bar plot with indices on x-axis
+    bar(1:length(uniqueTets), [prop0, prop1], 1, 'stacked'); % Adjusted here for dimension alignment
+    legend('silent', 'active');
+    xlabel('Tet Index');
+    ylabel('Proportion');
+    title('Stacked Bar Plot of Proportions');
+    
+    % If you want to annotate the bars with the actual tet values
+    for i = 1:length(uniqueTets)
+        text(i, 0, num2str(uniqueTets(i)), 'Rotation', 90, 'HorizontalAlignment', 'right', 'FontSize', 8);
+    end
+
+    
+end

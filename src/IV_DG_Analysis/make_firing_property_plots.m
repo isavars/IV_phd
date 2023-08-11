@@ -8,9 +8,40 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
     load (data, 'spatData');
     %load useful parts from spatData
     meanRate = spatData.meanRate;
-    awakeMeanRate = nanmean(meanRate(:,1:5),2);
+%     awakeMeanRate = nanmean(meanRate(:,1:5),2);
     burstIndex = spatData.burstIndex;
-    dataset_spat = spatData.dataset;
+
+
+    %make indexes for sleep and wake trials 
+
+    maxWakeMeanRate= zeros(size(spatData,1),1);
+    sleep_idx = zeros(size(spatData,1),1);
+    awakeMeanRate = zeros(size(spatData,1),1);
+    wake_idx = cell(size(spatData,1),1);
+    for itCl = 1: height(spatData)
+        sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
+        sleep_idx_temp = find(sleep_trials);
+        if size(sleep_idx_temp,2) > 1 
+            sleep_idx(itCl) = sleep_idx_temp(2); %dealing with trial with more than one sleep
+        else 
+            sleep_idx(itCl) = sleep_idx_temp;
+        end
+        nov_trials = strcmp(string(spatData.env(itCl,:)),'nov');
+        fam_trials = strcmp(string(spatData.env(itCl,:)),'fam');
+        wake_trials = nov_trials + fam_trials; 
+        %datasets have different numbers of wake trials 
+        wake_idx_temp = find(wake_trials);
+        wake_idx{itCl} = wake_idx_temp;
+        maxWakeMeanRate(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
+        awakeMeanRate(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+
+    end 
+     
+
+
+    %gather age data from cellInfo 
+    cellInfo = getCellInfo(spatData);
+
 
     
     %get excitatory cell clusters 
@@ -21,39 +52,51 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
     mossy_cluster =[];
     granule_cluster =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 2
+        if PCA2_clusters(ii) == 1
             granule_cluster = [granule_cluster;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
-        elseif PCA2_clusters(ii) == 1
+        elseif PCA2_clusters(ii) == 2
             mossy_cluster = [mossy_cluster;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
         end
     end
 
     pyramidal_cluster = CA3_ExCluster;
 
-    cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
-    clustername = {'granule', 'mossy', 'CA3'}; %to me used as tile change also depending on clusters plotted.         
+%     cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
+%     clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted.  
+
+    cluster = {granule_cluster, mossy_cluster, DG_ExCluster}; 
+    clustername = {'granule', 'mossy', 'Pooled Data'}; %to me used as title change also depending on clusters plotted.  
 
 %     %need to get this outside the loop - also this is the length of the
 %     DG ex cluster - not spat data so the indexing needs adjusting 
 % 
 %     [~, ~, co_recorded_cells_capped] = class_cells(data,electrodes,cell_clusters);
 
+    [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx );
+
+
     %loop over clusters and make sets of plots for each 
     for itC = 1:length(cluster)
         %make the features to be plotted 
         awakeMeanRate_clu = awakeMeanRate(cluster{itC});
-        sleepMeanRate_clu = meanRate (cluster{itC},end);
+        sleepMeanRate_clu = meanRate (cluster{itC},sleep_idx(cluster{itC}));
         rateChange_clu = awakeMeanRate_clu ./ sleepMeanRate_clu;
         burstIndex_clu = burstIndex (cluster{itC});
 %         co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
-    
+        if itC ==1
+            SVAR_clu = SVAR_G; %silent to active ratio granule 
+        elseif itC ==2
+            SVAR_clu = SVAR_M; %silent to active ratio mosssy
+        elseif itC ==3
+            SVAR_clu = SVAR_C; %silent to active ratio ca3 cells 
+        end 
+
         %loop over spatData and assign excitatory cells to age bins
-    
-        %gather age data from cellInfo 
-        cellInfo = getCellInfo(spatData);
+        
+        %get age from cell info
         age = cellInfo(:,3);
         age = age(cluster{itC});
-    
+   
         %separate the data into age bins 
         
         age_bins = [17 20; 21 31]; %21 24; 
@@ -72,12 +115,12 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         %make box plots for continous variables 
         
         % Define the data for each age bin
-        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1), sleepMeanRate_clu(bin_indices == 1), rateChange_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1)];
-        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), sleepMeanRate_clu(bin_indices == 2), rateChange_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2)];
+        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1), SVAR_clu(bin_indices == 1), rateChange_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1)];
+        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), SVAR_clu(bin_indices == 2), rateChange_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2)];
 %         data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), sleepMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
         
         % Create labels for the title
-        labels = {'awakeMeanRate', 'sleepMeanRate', 'rateChange', 'burstIndex'};
+        labels = {'awakeMeanRate', 'slient_to_acive_ratio', 'rateChange', 'burstIndex'};
         
         % Create labels for age bins
         age_bin_labels = cell(1, size(age_bins, 1));
@@ -117,15 +160,16 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         end
 %     
 %         %make bar plots for discrete variables 
-%     
+    
 %         corecorded_age_bin1 = co_recorded_cells_capped_clu(bin_indices == 1);
 %         corecorded_age_bin2 = co_recorded_cells_capped_clu(bin_indices == 2);
-%         corecorded_age_bin3 = co_recorded_cells_capped_clu(bin_indices == 3);
+% %         corecorded_age_bin3 = co_recorded_cells_capped_clu(bin_indices == 3);
 %     
 %         figure;
-%         bar([mean(corecorded_age_bin1), mean(corecorded_age_bin2), mean(corecorded_age_bin3)]);
+%         bar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)]);%, mean(corecorded_age_bin3)]);
 %         hold on;
-%         errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2), mean(corecorded_age_bin3)], [std(corecorded_age_bin1), std(corecorded_age_bin2), std(corecorded_age_bin3)], '.');
+%         errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)], [std(corecorded_age_bin1), std(corecorded_age_bin2)], '.');
+%         %errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2), mean(corecorded_age_bin3)], [std(corecorded_age_bin1), std(corecorded_age_bin2), std(corecorded_age_bin3)], '.');
 %         set(gca, 'XTickLabel', {'Pre-wean', 'Post-wean'});
 %         ylabel('Mean co-recorded cells');
 %         title('Mean co-recorded cells per age');
@@ -183,6 +227,56 @@ function KW_for_age_groups(age_bins, age, properties, property_names)
     end  
 
 end 
+
+function [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx )
+%this needs to read in cells from amb cluster and provide say if they are active in sleep only or at least one wake env 
+% then take the average mean firing rate of all cells on that tet and rank
+% them from low to high - introdicting cuttoffs where the ratio of active
+% in wake vs only active in sleep flips - that can be considered the hillus
+% and then when it filps back it can be considered CA3 - go per rat and do
+% all depths then see if it aligns with DS2 - can only spend time on this
+% if you find a moment. 
+
+    %itterate over clusters and find if the cells are active in sleep only or
+    %in run trials for each cluster 
+    for itClu = 1:length(cluster)
+        curr_cluster = cluster{itClu};
+        spatData_temp = spatData(curr_cluster,:);    
+        silent_or_active = zeros(height(spatData_temp),1);
+        for itC = 1: height(spatData_temp)
+            if all(spatData.nSpks(itC,wake_idx{itC}) < 75)
+                silent_or_active(itC) = 0; %active in sleep only
+            else 
+                silent_or_active(itC) = 1; %active in wake trial
+            end
+        end
+        %get the mean rate per tetrode 
+        meanRate_per_tet = zeros(height(spatData_temp),1);
+        ratio_silent_or_active_per_tet = zeros(height(spatData_temp),1);
+        cellInfo_temp = cellInfo(curr_cluster,:);
+        for jj=1:length(cellInfo_temp)
+            ID = cellInfo_temp(jj, 1);
+            tet = cellInfo_temp(jj, 2);
+            age = cellInfo_temp(jj, 3);
+            dates = cellInfo_temp(jj, 5);      
+            % Find indices of rows with the same ID, tet, age, and date
+            matchingIndices = find(cellInfo_temp(:,1) == ID & cellInfo_temp(:,2) == tet & cellInfo_temp(:,3) == age & cellInfo_temp(:,5) == dates);
+            %get mean rate per tet 
+            meanRate_per_tet(jj) = nanmean(spatData.meanRate(matchingIndices,sleep_idx(jj)));
+            ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/sum(silent_or_active(matchingIndices) ==1);
+            if ratio_silent_or_active_per_tet(jj) == inf
+                ratio_silent_or_active_per_tet(jj) = 1;
+            end
+        end  
+        if itClu == 1 
+            SVAR_G = ratio_silent_or_active_per_tet;
+        elseif itClu == 2
+            SVAR_M = ratio_silent_or_active_per_tet;
+        elseif itClu == 3
+            SVAR_C = ratio_silent_or_active_per_tet;
+        end
+    end
+end
 
 
     %normality tests 

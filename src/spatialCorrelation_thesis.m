@@ -33,10 +33,17 @@ function spatialCorrelation_thesis(spatData,clusters)
             for itCell= 1: height(spatData)
                 for itTrial = 1: width(spatData.env)
                     if contains(cast(spatData.env(itCell,itTrial),'char'),'fam')
-                        FamIndT(itCell,itTrial) = itTrial;
+                        %add top firing rate trials 
+                        FamIndT = [FamIndT, itTrial];
+                        FamIndT = nonzeros(FamIndT)';
                         famCount = famCount + 1;
-                        if famCount <= maxFam
-                             FamInd(itCell,famCount)= transpose(nonzeros(FamIndT(itCell,itTrial)));
+                        if famCount > maxFam                            
+                            nSpks_per_fam_trial = nSpks(itCell,FamIndT);
+                            [~, idx] = sort(nSpks_per_fam_trial, 'descend'); %find top 2 firing rate trials 
+                            top_two = FamIndT(idx(1:2));
+                            FamInd(itCell,:)= top_two;
+                        else  
+                            FamInd(itCell,famCount)= FamIndT(famCount);
                         end
                     elseif strcmp(cast(spatData.env(itCell,itTrial),'char'),'nov')
                         NovInd(itCell,itTrial) = itTrial;
@@ -47,6 +54,7 @@ function spatialCorrelation_thesis(spatData,clusters)
                     end 
                 end
                 famCount = 0;
+                FamIndT = [];
             end
     
     
@@ -57,15 +65,15 @@ function spatialCorrelation_thesis(spatData,clusters)
     mossy =[];
     granule =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 2
+        if PCA2_clusters(ii) == 1
             mossy = [mossy;DG_ExCluster(ii)]; % for WF1_AMR_BI_CCC_test its 1 for mc and 2 for gc %for WF1_AMR_BI_CCC_new - 1 is mc and 2 is gc 
-        elseif PCA2_clusters(ii) == 1
+        elseif PCA2_clusters(ii) == 2
             granule = [granule;DG_ExCluster(ii)];% for WF1_AMR_BI_CCC_r1099 - 1 is gc and 2 is mc 
 
         end
     end 
     
-    cluster =  granule; %granule; %CA3_ExCluster; % 
+    cluster =  mossy; %granule; %CA3_ExCluster; % 
     clustername =  {'Granule Cells'}; %{'CA3 Pyramidal Cells'}; % {'Mossy Cells'};%
     orange = [1, 0.5, 0];
     color = orange;
@@ -101,7 +109,7 @@ function spatialCorrelation_thesis(spatData,clusters)
             cluster_count = cluster3;
             %remove non-spatial cells from the cluster 
             for itClu = 1: length (cluster3) 
-                if any(SI_spat(cluster3(itClu),1:5) > 0.2) || any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
+                if any(spatData.sig_SI(cluster3(itClu),1:5) == 1) && any(nSpks(cluster3(itClu),1:5) > 75) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
                     cluster3(itClu) = cluster3(itClu);
                 else
                     cluster3(itClu) = 0;
@@ -118,6 +126,12 @@ function spatialCorrelation_thesis(spatData,clusters)
                 Circle = rMap(itCr,NovInd(itCr));
                 Square = cell2mat(rMap(itCr,FamInd(itCr,1)));
                 NewSquare(itCr,:) = rates_transform(Circle,1,Square,8);
+            end
+
+            %deal with tetrode trials 
+            if isempty(DiffInd)
+                display('no diff trial, ignore middle column')
+                DiffInd = FamInd;
             end
             
             %get r values for all comparisons 

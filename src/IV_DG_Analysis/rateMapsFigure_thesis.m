@@ -14,7 +14,7 @@ function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 
 load (data, 'spatData')
 load (electrode_positions, 'elePos')
-load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
+load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2','low_narrow')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -74,14 +74,15 @@ trial_duration = round(trial_duration);
     cluster2 =[];
     for ii = 1: length(PCA2_clusters)
         if PCA2_clusters(ii) == 1 %granule cells go here and will always be the first pages of maps 
-%             if max_meanRate(ii) < 0.5 %temporary rate filter for granule cell cluster 
                 cluster1 = [cluster1;DG_ExCluster(ii)]; 
-%             else 
-%             end
         elseif PCA2_clusters(ii) == 2
             cluster2 = [cluster2;DG_ExCluster(ii)];
         end
     end 
+
+%     cluster1 = low_narrow;
+%     cluster1 = InCluster1;
+%     cluster2 = InCluster2;
     
     clusters = {cluster1, cluster2};%, cluster2};
 
@@ -121,8 +122,8 @@ trial_duration = round(trial_duration);
             for it_rm = 1: 5
                     gra_plotmap(rMap{clusters{itC}(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
             end
-            spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
-%             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,trial_duration(clusters{itC}(it_clu)),'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+%             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
+            spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,trial_duration(clusters{itC}(it_clu)),'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
                 axis(axArr(axRowCount,7),[0 75 -100 200]);
             plot(axArr(axRowCount,7), cell2mat(WFs(clusters{itC}(it_clu))));
                 axis(axArr(axRowCount,7),[0 75 -100 200]); 
@@ -138,11 +139,12 @@ trial_duration = round(trial_duration);
                     cluster = 'Putative Mossy';
                 end
                 fig_count = fig_count +1;
-                savefig(hFig, [writeDir '/' cluster ': Group ' num2str(fig_count) '.fig'])
+%                 savefig(hFig, [writeDir '/' cluster ': Group ' num2str(fig_count) '.fig'])
             end
         end
         fig_count = 0; 
    end 
 
-
 end
+
+

@@ -5,11 +5,11 @@ function get_DS2_cell_cofiring(data, electrodes)
 % histograms like the ones in S&B - 
     % Peri-event time histogram of GC (left) and MC (right) spikes aligned to 
     % the time of the peak of DS2 (mean ± s.d.). 
-    % Peak firing ratio was calculated by dividing peak firing rate by baseline rate.
+    % Peak firing ratio was calculated by ..
     % I think what this means is i have to take 1 second time windows
     % around each DS2 and plot the ratio of the maximum firing rate of over 
-    % the baseline firing rate for each time unit in that window - then
-    % plot all the spike windows overlayed.
+    % the baseline firing rate of a cell for each time unit in that window 
+    % - then plot all the spike windows overlayed for that group (gc or mc)
 
     % the relevant result is that GCs are more coincident with ds2 than
     % mossy but they both are and for CA3 i guess it should go down (if you

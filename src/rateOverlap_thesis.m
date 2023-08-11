@@ -37,11 +37,24 @@ load(data, 'spatData')
         for itCell= 1: height(spatData)
             for itTrial = 1: width(env)
                 if contains(cast(env(itCell,itTrial),'char'),'fam')
-                    FamIndT(itCell,itTrial) = itTrial;
+                    %add top firing rate trials 
+                    FamIndT = [FamIndT, itTrial];
+                    FamIndT = nonzeros(FamIndT)';
                     famCount = famCount + 1;
-                    if famCount <= maxFam
-                         FamInd(itCell,famCount)= transpose(nonzeros(FamIndT(itCell,itTrial)));
+                    if famCount > maxFam                            
+                        nSpks_per_fam_trial = nSpks(itCell,FamIndT);
+                        [~, idx] = sort(nSpks_per_fam_trial, 'descend'); %find top 2 firing rate trials 
+                        top_two = FamIndT(idx(1:2));
+                        FamInd(itCell,:)= top_two;
+                    else  
+                        FamInd(itCell,famCount)= FamIndT(famCount);
                     end
+                    %first two baselines 
+%                     FamIndT(itCell,itTrial) = itTrial;
+%                     famCount = famCount + 1;
+%                     if famCount <= maxFam
+%                          FamInd(itCell,famCount)= transpose(nonzeros(FamIndT(itCell,itTrial)));
+%                     end
                 elseif strcmp(cast(env(itCell,itTrial),'char'),'nov')
                     NovInd(itCell,itTrial) = itTrial;
                     NovInd = nonzeros(NovInd);
@@ -51,6 +64,7 @@ load(data, 'spatData')
                 end 
             end
             famCount = 0;
+            FamIndT =[];
         end
 
       
@@ -75,7 +89,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
     end 
 
-    cluster3 = granule ;%granule;%CA3_ExCluster;
+    cluster3 = mossy ;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -106,7 +120,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
          novOverlap3 = nan(1,length(cluster3));
          diffOverlap3= nan(1,length(cluster3));
          for itC1 = 1: length(cluster3)
-              if any(nSpks(cluster3(itC1),1:5) > 50) %exclude cells that didn't really fire in any of the boxes            
+              if any(nSpks(cluster3(itC1),1:5) > 75) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1)%exclude cells that didn't really fire in any of the boxes            
                  if meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)) > meanRate(cluster3(itC1),FamInd(cluster3(itC1),2))
                     famOverlap3(itC1) = meanRate (cluster3(itC1),FamInd(cluster3(itC1),2)) / meanRate(cluster3(itC1),FamInd(cluster3(itC1),1));
                  elseif meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)) < meanRate(cluster3(itC1),FamInd(cluster3(itC1),2))

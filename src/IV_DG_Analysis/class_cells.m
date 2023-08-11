@@ -5,8 +5,6 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %interneuron, granule cell, mossy cell and CA3 pyramidal cell. 
 
     % TO DO:
-    %       - modify single shank probe tetshank chan to make the shanks
-    %       the 8 conacts around a 'tet' instead of just 4 set octrodes 
     %       -make all the steps that arent subfuntions into subfunctions
     %       -rem sleep CA3 sorting works as intended but doesn's seem to be
     %       separating the cells well - try again because sleep was coming 
@@ -20,7 +18,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     load (data, 'spatData');
     %load useful parts from spatData
     meanRate = spatData.meanRate;
-    awakeMeanRate = nanmean(meanRate(:,1:5),2);
+    awakeMeanRate_all = nanmean(meanRate(:,1:5),2);
     burstIndex = spatData.burstIndex;
     animal = spatData.animal;
     dataset = spatData.dataset;
@@ -29,7 +27,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     max_wf_chan = spatData.max_wf_channel; %this is per trial needs to be one value 
     nSpks = spatData.nSpks;
     SpkTs = spatData.SpkTs;
-    TP_latency = mean(spatData.TP_latency,2);
+    TP_latency = nanmean(spatData.TP_latency,2);
     %load electrode Positions -rename this to metadata or add the option
     %for elePos or a different metadata file to be used. 
     load (electrodes, 'elePos');
@@ -40,12 +38,14 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 
     %chose trial with most spikes to use wfs, spike times, mean firing rate, max wf channel from it 
     for itSp = 1: length (nSpks) 
-        [~, maxSpksPos] = max(nSpks(itSp,:)); 
+        [~, maxSpksPos] = max(nSpks(itSp,1:5)); %max for all wake trials
+%         maxSpksPos = 6; % sleep only - knierim used this and also just makes sense because gc wfs should be clearer
         WFs (itSp,:) = wf_means(itSp, maxSpksPos); %gets best wf from wf means
         max_wf_chan(itSp,:) = max_wf_chan(itSp,maxSpksPos); 
         max_waveforms(itSp,:) = waveforms(itSp,maxSpksPos); 
         STs (itSp,:) = SpkTs(itSp, maxSpksPos); %gets the spiketimes from the same trial to calculate the burst index
         max_burstIndex(itSp,:) = burstIndex(itSp, maxSpksPos); 
+        TP_latency(itSp,:) = spatData.TP_latency(itSp, maxSpksPos);
 %         max_awakeMeanRate (itSp,:) = meanRate(itSp, maxSpksPos); %gets the wake mean firing rate for the most active wake trial (doesn this make sense?)
     end
     
@@ -86,7 +86,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %step 2 - filter by excitatory vs inhibitory using trough-to-peak
     %measure, mean rate, and maybe burst index from Knierim. 
     
-    [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency,awakeMeanRate,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
+    [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2] = interneuron_filter(WFs,TP_latency,awakeMeanRate_all,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
 
     %filter ambiguous clusters for CA3 vs DG cells using rem sleep - so in
     %S&B they show GCs have a much higher firing rate in NREM than wake or
@@ -133,10 +133,11 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     % might need peak to trough amplitude or slope of peak to trough
     % amplitudes for this. 
 
-    option = 3;
+    option = 4;
 
-    DS2_orientations = get_DS2_orientations(spatData,DG_ExCluster,elePos, shank_channels, option);
-
+    [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatData,DG_ExCluster,elePos, shank_channels, option, tetShankChan);
+    
+    DS2_slope_per_channel = DS2_slope_per_channel(DG_ExCluster);
     %turn DS2_orientations into a categorical so it can be plotted 
 %     DS2_orientations = DS2_orientations(~cellfun(@isempty, DS2_orientations)); %remove empty cells so its the same length as other features
 %     DS2_orientations = categorical(DS2_orientations, {'up', 'inverting', 'down', 'no DS2'}, 'Protected', true);
@@ -168,7 +169,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %need to make a DG_exCluster and a CA3_exCluster - or do this
     %differently with one big loop 
 
-        awakeMeanRate = awakeMeanRate(DG_ExCluster);
+        awakeMeanRate = awakeMeanRate_all(DG_ExCluster);
         sleepMeanRate = meanRate (DG_ExCluster,end);
         rateChange = awakeMeanRate ./ sleepMeanRate;
 
@@ -223,7 +224,6 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
         
         co_recorded_shank = co_recorded_cells_all(DG_ExCluster,2);
-
         co_recorded_shank_capped = zeros(size(co_recorded_shank,2));
         for ii = 1:length(co_recorded_shank)
             if co_recorded_shank(ii) >= 4 
@@ -233,6 +233,17 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
             end
         end 
         co_recorded_shank_capped = co_recorded_shank_capped';
+
+
+        co_recorded_shank_ex_capped = zeros(size(co_recorded_shank_ex,2));
+        for ii = 1:length(co_recorded_shank_ex)
+            if co_recorded_shank_ex(ii) >= 4 
+                co_recorded_shank_ex_capped(ii) = 4;
+            else 
+                co_recorded_shank_ex_capped(ii) = co_recorded_shank_ex(ii);
+            end
+        end 
+        co_recorded_shank_ex_capped = co_recorded_shank_ex_capped';
 
     %step 8 - run a second PCA on the chosen features -output is PC1 to be
     %used in clustering and histogram showing the distribution. 
@@ -244,7 +255,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [ wfPC1,awakeMeanRate, burstIndex, slope];%co_recorded_shank_ex];% wfPC2, DS2_orientations];%%wfPC1        % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [ wfPC1,awakeMeanRate, burstIndex, co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -280,27 +291,53 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %wf-pca plots 
     
     %plot of the normalized waveforms 
+%     figure;
+%     hold all;
+%     colors = {'b','g'};
+%     for ii = 1:length(DG_ExCluster)
+%         cluster = PCA2_clusters(ii); 
+%         plot(pca_data(ii,:),'Color', colors{cluster});
+%     end
+% 
+%     %plot of the second derrivative of the normalized waveforms 
+%     figure;
+%     hold all;
+%     colors = {'b','g'};
+%     for ii = 1:length(DG_ExCluster)
+%         cluster = PCA2_clusters(ii); 
+%         plot(diff_pca_data(ii,:),'Color', colors{cluster});
+%     end
+      
+    %interneuron filter summary figure
+    % Initialize an array with the same size as your data.
+    groups = categorical(repmat("", size(TP_latency)));    
+    % Set the groups based on the index arrays.
+    groups(DG_ExCluster) = 'DG';
+    groups(CA3_ExCluster) = 'CA3';
+    groups(InCluster1) = 'InCluster1';
+    groups(InCluster2) = 'InCluster2';    
+    % Manually specify the order of the groups.
+    groups = reordercats(groups, {'InCluster1', 'InCluster2', 'DG', 'CA3'});
+    
+    % Define colors.
+    colors = [
+        0 0 1;   % dark blue for 'InCluster1'
+        0.4 0.4 1; % light blue for 'InCluster2'
+        0 1 0;   % green for 'DG'
+        1 0 0;   % red for 'CA3'
+    ];
+    
+    % Create the scatter plot.\
     figure;
-    hold all;
-    colors = {'b','g'};
-    for ii = 1:length(DG_ExCluster)
-        cluster = PCA2_clusters(ii); 
-        plot(pca_data(ii,:),'Color', colors{cluster});
-    end
-
-    %plot of the second derrivative of the normalized waveforms 
-    figure;
-    hold all;
-    colors = {'b','g'};
-    for ii = 1:length(DG_ExCluster)
-        cluster = PCA2_clusters(ii); 
-        plot(diff_pca_data(ii,:),'Color', colors{cluster});
-    end
-
-   
+    gscatter(TP_latency, awakeMeanRate_all , groups, colors); %
+    xlabel("Trough to Peak Latency (ms)",'FontSize', 16)
+    ylabel("Mean Firing Rate (Hz)",'FontSize', 16)
+    
+    % Add a legend.
+    legend('InCluster1', 'InCluster2', 'DG', 'CA3');
     
     figure;
-    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'gr', '.', 12);
+    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
     xlabel("wfPC1",'FontSize', 16)
     ylabel("DS2 orientations",'FontSize', 16)
     set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'},'FontSize', 16);
@@ -330,7 +367,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 %     DS2_orientations = categorical(DS2_orientations, {'up', 'inverting', 'down', 'no DS2'}, 'Protected', true);
     figure;
     hold all;
-    gscatter(jitter(co_recorded_shank_capped), jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
+    gscatter(jitter(co_recorded_shank_ex), jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
     xlabel("# co-recorded cells on the same shank")
     ylabel("DS2 orientations")
     set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'});
@@ -380,7 +417,6 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 %     xlabel("# co-recorded cells on the same shank")
 %     ylabel("wfPC1")
 
-
 %     figure;
 %     hold all;
 %     gscatter(slope, awakeMeanRate, wfPC_rate_clusters, 'bg', '.', 12);
@@ -407,8 +443,8 @@ function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,
         tetShankChan = zeros(length(tet),3);
         shank_channels = zeros(length(tet),8); %this is going to contain the channels that are on each shank to be used by electrode position measure
         % this is kept the same per probe type - in the single shank probes
-        % cells recorded on the same shank will equal in the same 8 nearby 
-        % contacts 
+        % cells recorded on the "same shank" will be from the 8 closest 
+        % contacts to the 'tetrode' the channel is on 
         for it_tet = 1: length(tet)            
             % create channel index per tetrode 'tet_index' which is a tetrode by
             % channel identity array for each type of probe 
@@ -422,8 +458,8 @@ function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,
                 tetShankChan(it_tet,1) = tet(it_tet);
                 tetShankChan(it_tet,3) = tet_index(tet(it_tet),max_wf_chan(it_tet));
                 if tet(it_tet) == 1 || tet(it_tet) == 2 || tet(it_tet) == 9
-                    tetShankChan(it_tet,2) = 1;
-                    shank_channels(it_tet,:) = reshape(tet_index(1:2, :), [],1)';
+                    tetShankChan(it_tet,2) = 1; %adds shank label 
+                    shank_channels(it_tet,:) = reshape(tet_index(1:2, :), [],1)'; %says all the channels on that shank
                 elseif tet(it_tet) == 3 || tet(it_tet) == 4 || tet(it_tet) == 10
                     tetShankChan(it_tet,2) = 2;
                     shank_channels(it_tet,:) = reshape(tet_index(3:4, :), [],1)';
@@ -440,22 +476,34 @@ function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,
                 overlap_rows = repmat (0:8:24,4,1).' + repmat (3:6,4,1);
                 % Add the overlapping rows to the matrix
                 tet_index = [tet_index; overlap_rows];
+                % make shank channel index for making shank channels that
+                % represent 8 closest contacts to recorded tetrodes
+    
+                if tet(it_tet) == 1 || tet(it_tet) == 9
+                    shank_channels(it_tet,:) = 1:8;
+                elseif tet(it_tet) == 8
+                    shank_channels(it_tet,:) = 25:32;
+                else
+                    row = tet_index(tet(it_tet),:);
+                    shank_channels(it_tet,:) = [row(1)-2, row(1)-1, row, row(end)+1, row(end)+2];
+                end
+
                 %make tetShankChan for single shank - in this case shank
                 %represents the 4 closest contacts to the 'tetrode' 
                 tetShankChan(it_tet,1) = tet(it_tet);
                 tetShankChan(it_tet,3) = tet_index(tet(it_tet),max_wf_chan(it_tet));
                 if tet(it_tet) == 1 || tet(it_tet) == 2 || tet(it_tet) == 9
                     tetShankChan(it_tet,2) = 1;
-                    shank_channels(it_tet,:) = reshape(tet_index(1:2, :), [],1)';
+                    %shank_channels(it_tet,:) = reshape(tet_index(1:2, :), [],1)';
                 elseif tet(it_tet) == 3 || tet(it_tet) == 4 || tet(it_tet) == 10
                     tetShankChan(it_tet,2) = 2;
-                    shank_channels(it_tet,:) = reshape(tet_index(3:4, :), [],1)';
+                    %shank_channels(it_tet,:) = reshape(tet_index(3:4, :), [],1)';
                 elseif tet(it_tet) == 5 || tet(it_tet) == 6 || tet(it_tet) == 11
                     tetShankChan(it_tet,2) = 3;
-                    shank_channels(it_tet,:) = reshape(tet_index(5:6, :), [],1)';
+                    %shank_channels(it_tet,:) = reshape(tet_index(5:6, :), [],1)';
                 elseif tet(it_tet) == 7 || tet(it_tet) == 8 || tet(it_tet) == 12
                     tetShankChan(it_tet,2) = 4;
-                    shank_channels(it_tet,:) = reshape(tet_index(7:8, :), [],1)';
+                    %shank_channels(it_tet,:) = reshape(tet_index(7:8, :), [],1)';
                 end
             end 
 
@@ -494,7 +542,6 @@ function [wfPC1,wfPC2, pca_data, diff_pca_data] = waveformPCA(DG_ExCluster,wavef
     % the whole wave? - can get from extract DS2 artejact rejection 
     % 2) try just plotting sections of the second derrivative to see if you get
     %a bimodality 
-
 
     ex_waveforms = waveforms(DG_ExCluster);
     pca_data = [];
@@ -604,10 +651,12 @@ function [PCA2_clusters]= kmeans_clustering(cluster_data)
         title('K-Means Clustering');
 end
 
-function DS2_orientations = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option)
+function [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
 % are the spikes on the shank the cell was recorded on pointing up, mix of both or down.
     DS2_orientations = zeros(height(spatData),1);
-    
+    DS2_slope_per_channel = zeros(height(spatData),1);
+    DS2_max_amplitudes_variance = nan(height(spatData),1);
+    DS2_mean_amplitude_per_shank = zeros(height(spatData),1);
     DS2_orientations_option = []; %making these to look at population values on a histogram 
 
     %loop through spatData(DG_ExCluster) and find the DS2 amplitudes and make a distance from DS2 discrete measure per shank or section of one shank probe 
@@ -620,12 +669,12 @@ function DS2_orientations = get_DS2_orientations(spatData, DG_ExCluster,elePos, 
                     % ^^ this finds the value per trial for the shank a cell is on in spatData(it_DG_Ex) 
                     if DS2_median_amplitude_per_shank > 0.4
                         DS2_orientation = 1;
-                    elseif DS2_median_amplitude_per_shank <= 0.4 || DS2_median_amplitude_per_shank >= -0.2 
+                    elseif DS2_median_amplitude_per_shank <= 0.4 && DS2_median_amplitude_per_shank >= -0.2 
                         DS2_orientation = 2;
                     elseif DS2_median_amplitude_per_shank < -0.2
                         DS2_orientation = 3;
                     elseif isnan(DS2_median_amplitude_per_shank)
-                        DS2_orientation = 4; 
+                        DS2_orientation = nan; 
                     end
                     DS2_orientations(it_DG_Ex) = DS2_orientation;
                     DS2_orientations_option = [DS2_orientations_option;DS2_median_amplitude_per_shank];
@@ -634,33 +683,53 @@ function DS2_orientations = get_DS2_orientations(spatData, DG_ExCluster,elePos, 
                     DS2_mean_amplitude_per_shank = median(elePos.DS2_peak_to_trough_amplitude(it_ep,shank_channels(it_DG_Ex,:)));
                     if DS2_mean_amplitude_per_shank > 0.4
                         DS2_orientation = 1;
-                    elseif DS2_mean_amplitude_per_shank <= 0.4 || DS2_mean_amplitude_per_shank >= -0.05 
+                    elseif DS2_mean_amplitude_per_shank <= 0.4 && DS2_mean_amplitude_per_shank >= -0.05 
                         DS2_orientation = 2;
                     elseif DS2_mean_amplitude_per_shank < -0.05
                         DS2_orientation = 3;
                     elseif isnan(DS2_mean_amplitude_per_shank)
-                        DS2_orientation = 4; 
+                        DS2_orientation = nan; 
                     end
                     DS2_orientations(it_DG_Ex) = DS2_orientation;
                     DS2_orientations_option = [DS2_orientations_option;DS2_mean_amplitude_per_shank];
                 elseif option == 3 %fill in for slope - plot first to come up with cuttoffs 
-                    DS2_mean_slope_per_shank = median(elePos.DS2_slope(it_ep,shank_channels(it_DG_Ex,:)));
-                    if DS2_mean_slope_per_shank < -70
-                        DS2_orientation = 1;
-                    elseif DS2_mean_slope_per_shank <= 0 || DS2_mean_slope_per_shank >= -70
-                        DS2_orientation = 2;
-                    elseif DS2_mean_slope_per_shank > 0
-                        DS2_orientation = 3;
+                    DS2_slope_per_channel(it_DG_Ex) = elePos.DS2_slope(it_ep,tetShankChan(it_DG_Ex,3));
+                    DS2_slope_per_shank = elePos.DS2_slope(it_ep,shank_channels(it_DG_Ex,:));
+                    DS2_mean_slope_per_shank = nanmean(DS2_slope_per_shank);
+                    if DS2_mean_slope_per_shank < -50 %changing the cutoff here to 50 because it made sense from the histogram of the median DS2_slopes
+                        DS2_orientation = 1;%up
+                    elseif DS2_mean_slope_per_shank <= 50 && DS2_mean_slope_per_shank >= -50
+                        DS2_orientation = 2;%inverting
+                    elseif DS2_mean_slope_per_shank > 50
+                        DS2_orientation = 3;%down
                     elseif isnan(DS2_mean_slope_per_shank)
-                        DS2_orientation = nan; 
-                    end
+                        DS2_orientation = nan; %no ds2
+                    end                    
                     DS2_orientations(it_DG_Ex) = DS2_orientation;
                     DS2_orientations_option = [DS2_orientations_option;DS2_mean_slope_per_shank];
-                end 
-            end
-        end 
+                elseif option == 4 %calculate variance in amplitude across all the channels on the probe where the cell was recorded. 
+                    DS2_max_amplitudes_on_shank = elePos.DS2_max_amplitude(it_ep, shank_channels(it_DG_Ex,:));
+                    DS2_max_amplitudes_variance(it_DG_Ex) = var(DS2_max_amplitudes_on_shank);
+                    DS2_mean_amplitude_per_shank(it_DG_Ex)= nanmean(DS2_max_amplitudes_on_shank);
+                    if DS2_max_amplitudes_variance(it_DG_Ex) <= 0.0066
+                        if DS2_mean_amplitude_per_shank(it_DG_Ex) > 0 
+                            DS2_orientation = 1;%up
+                        else
+                            DS2_orientation = 3;%down
+                        end
+                    elseif  DS2_max_amplitudes_variance(it_DG_Ex) >= 0.0066
+                        DS2_orientation = 2;%inverting 
+                    elseif isnan(DS2_max_amplitudes_variance(it_DG_Ex))
+                        DS2_orientation = nan; %no ds2
+                    end
+                    DS2_orientations(it_DG_Ex) = DS2_orientation;
+                end
+            end 
+        end
     end
-    %histogram(DS2_orientations_option,'NumBins', 10);
+%     figure;
+%     histogram(DS2_max_amplitudes_variance,'NumBins', 20);
+%     set(gca,'Xscale','log')
 end
 % Function for jittering data points
 function jitteredData = jitter(data)
