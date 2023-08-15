@@ -14,7 +14,7 @@ function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 
 load (data, 'spatData')
 load (electrode_positions, 'elePos')
-load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2','low_narrow')
+load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2')
 
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -43,6 +43,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', '
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
         trial_duration (itSp,:) = trialDur(itSp, maxSpksPos);
         max_meanRate(itSp,:) = meanRate (itSp, maxSpksPos);
+        BIs (itSp,:) = burstIndex(itSp, maxSpksPos);
     end
     
 %convert trial duraiton to integer value so it works in AC calculation
@@ -80,11 +81,11 @@ trial_duration = round(trial_duration);
         end
     end 
 
-%     cluster1 = low_narrow;
-%     cluster1 = InCluster1;
+% %     cluster1 = low_narrow;
+    cluster1 = InCluster2;
 %     cluster2 = InCluster2;
     
-    clusters = {cluster1, cluster2};%, cluster2};
+    clusters = {cluster1};%, cluster2};%, cluster2};
 
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
@@ -102,7 +103,7 @@ trial_duration = round(trial_duration);
 
 % makes 1 figure per cluster
     
-    maxRowPerFig = 6;
+    maxRowPerFig = 5;
     axRowCount = 1;
 
 
@@ -124,9 +125,18 @@ trial_duration = round(trial_duration);
             end
 %             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,trial_duration(clusters{itC}(it_clu)),'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
-                axis(axArr(axRowCount,7),[0 75 -100 200]);
+                axis(axArr(axRowCount,6),'tickaligned');
+                axArr(axRowCount,6).XAxis.TickLabelRotation = 0;
+                axArr(axRowCount,6).YAxis.TickLabelRotation = 0;
+                %xlabel(axArr(axRowCount,6), 'Seconds');
+                ylabel(axArr(axRowCount,6), num2str(BIs(clusters{itC}(it_clu))));
+
             plot(axArr(axRowCount,7), cell2mat(WFs(clusters{itC}(it_clu))));
                 axis(axArr(axRowCount,7),[0 75 -100 200]); 
+                axArr(axRowCount,7).XTickLabel = {};
+                xlabel(axArr(axRowCount,7), '1.5 ms', 'FontSize', 12); %this needs to change when its tetrode data 
+                hYLabel = ylabel(axArr(axRowCount,7), 'Voltage (μV)');
+                set(hYLabel, 'Position', [90 1 1]);
             text (axArr(axRowCount,1),-50,23,textContent(clusters{itC}(it_clu)), 'FontSize', 12); 
             axRowCount = axRowCount + 1;
 

@@ -15,6 +15,7 @@ function rateOverlap_thesis(data, cell_clusters)
 load(data, 'spatData')
 
     meanRate = spatData.meanRate;
+    %meanRate = spatData.peakRate;
     env = spatData.env; 
     SI_spat = spatData.SI_spat;
     nSpks = spatData.nSpks;
@@ -81,15 +82,15 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     mossy =[];
     granule =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 1
+        if PCA2_clusters(ii) == 2
             granule = [granule;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_latest - 2 is gc and 1 is mc for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
-        elseif PCA2_clusters(ii) == 2
+        elseif PCA2_clusters(ii) == 1
             mossy = [mossy;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
 
         end
     end 
 
-    cluster3 = mossy ;%granule;%CA3_ExCluster;
+    cluster3 = granule ;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -119,26 +120,15 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
          famOverlap3 = nan(1,length(cluster3));
          novOverlap3 = nan(1,length(cluster3));
          diffOverlap3= nan(1,length(cluster3));
+
          for itC1 = 1: length(cluster3)
-              if any(nSpks(cluster3(itC1),1:5) > 75) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1)%exclude cells that didn't really fire in any of the boxes            
-                 if meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)) > meanRate(cluster3(itC1),FamInd(cluster3(itC1),2))
-                    famOverlap3(itC1) = meanRate (cluster3(itC1),FamInd(cluster3(itC1),2)) / meanRate(cluster3(itC1),FamInd(cluster3(itC1),1));
-                 elseif meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)) < meanRate(cluster3(itC1),FamInd(cluster3(itC1),2))
-                    famOverlap3(itC1) = meanRate (cluster3(itC1),FamInd(cluster3(itC1),1)) / meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)); %this isn't going to work with all data some have nan in position 1 so i have to use 2vs 4 
-                 end
-                 if meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)) > meanRate(cluster3(itC1),NovInd(cluster3(itC1)))
-                    novOverlap3(itC1) = meanRate (cluster3(itC1),NovInd(cluster3(itC1))) / meanRate(cluster3(itC1),FamInd(cluster3(itC1),2));
-                 elseif meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)) < meanRate(cluster3(itC1),NovInd(cluster3(itC1)))
-                    novOverlap3(itC1) = meanRate (cluster3(itC1),FamInd(cluster3(itC1),2)) / meanRate(cluster3(itC1),NovInd(cluster3(itC1)));
-                 end
-                 if meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)) > meanRate(cluster3(itC1),DiffInd(cluster3(itC1)))
-                    diffOverlap3(itC1) = meanRate (cluster3(itC1),DiffInd(cluster3(itC1))) / meanRate(cluster3(itC1),FamInd(cluster3(itC1),2));
-                 elseif meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)) < meanRate(cluster3(itC1),DiffInd(cluster3(itC1)))
-                    diffOverlap3(itC1) = meanRate (cluster3(itC1),FamInd(cluster3(itC1),2)) / meanRate(cluster3(itC1),DiffInd(cluster3(itC1)));
-                 end
-              else
-              end
+            if any(nSpks(cluster3(itC1),1:5) > 75) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
+                famOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)), meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)));
+                novOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),NovInd(cluster3(itC1))));
+                diffOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),DiffInd(cluster3(itC1))));
+            end
          end
+
         famOverlap3 = famOverlap3.';
         novOverlap3 = novOverlap3.';
         diffOverlap3 = diffOverlap3.';
@@ -229,5 +219,23 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
 
 
-end        
+end     
+
+function overlapValue = calculateOverlap(rate1, rate2)
+    if rate1 > rate2
+        if rate1 == 0 % Check for division by zero
+            overlapValue = 0; % or some other value you consider appropriate
+        else
+            overlapValue = rate2 / rate1;
+        end
+    elseif rate1 < rate2
+        if rate2 == 0 % Check for division by zero
+            overlapValue = 0; % or some other value you consider appropriate
+        else
+            overlapValue = rate1 / rate2;
+        end
+    else
+        overlapValue = 1; % This is for the 'equal to' check
+    end
+end
 

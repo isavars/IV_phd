@@ -36,7 +36,8 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     hist_labels = elePos.hist_labels; 
     probe_type = elePos.probe_type;
 
-    %chose trial with most spikes to use wfs, spike times, mean firing rate, max wf channel from it 
+    %chose trial with most spikes to use wfs, spike times, mean firing
+    %rate, max wf channel from the wake trials only
     for itSp = 1: length (nSpks) 
         [~, maxSpksPos] = max(nSpks(itSp,1:5)); %max for all wake trials
 %         maxSpksPos = 6; % sleep only - knierim used this and also just makes sense because gc wfs should be clearer
@@ -46,9 +47,15 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         STs (itSp,:) = SpkTs(itSp, maxSpksPos); %gets the spiketimes from the same trial to calculate the burst index
         max_burstIndex(itSp,:) = burstIndex(itSp, maxSpksPos); 
         TP_latency(itSp,:) = spatData.TP_latency(itSp, maxSpksPos);
-%         max_awakeMeanRate (itSp,:) = meanRate(itSp, maxSpksPos); %gets the wake mean firing rate for the most active wake trial (doesn this make sense?)
+        max_awakeMeanRate(itSp,:) = meanRate(itSp, maxSpksPos); %gets the wake mean firing rate for the most active wake trial 
     end
-    
+    %temporarily making awakeMeanRate the max awake mean rate - this
+    %removes the posibility of PS differences across age of causing an
+    %issue with constant features of MCs and GCs 
+
+    awakeMeanRate = max_awakeMeanRate;
+
+
     %get tetrode to shank and channel mapping to be used by cluster feature
     %functions - needs to work for single shank probes also
     [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,elePos);
@@ -138,6 +145,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatData,DG_ExCluster,elePos, shank_channels, option, tetShankChan);
     
     DS2_slope_per_channel = DS2_slope_per_channel(DG_ExCluster);
+    DS2_orientations = DS2_orientations(DG_ExCluster);
     %turn DS2_orientations into a categorical so it can be plotted 
 %     DS2_orientations = DS2_orientations(~cellfun(@isempty, DS2_orientations)); %remove empty cells so its the same length as other features
 %     DS2_orientations = categorical(DS2_orientations, {'up', 'inverting', 'down', 'no DS2'}, 'Protected', true);
@@ -148,6 +156,10 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     %to use here. 
 
         [wfPC1,wfPC2, pca_data, diff_pca_data] = waveformPCA(DG_ExCluster,max_waveforms);
+
+    %step 5 - make silent vs active ratio 
+
+    [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster);
 
     
     %step 6 - make "slope" from Knierim group (slope of best fit line 
@@ -173,6 +185,13 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         sleepMeanRate = meanRate (DG_ExCluster,end);
         rateChange = awakeMeanRate ./ sleepMeanRate;
 
+        %rateChange can have inf values if dividing by zero in sleep and 0
+        %if rate is 0 in wake 
+        for ii = 1: length(rateChange)
+            if rateChange(ii) == inf || rateChange(ii) == 0 %these should basically not be in the dataset but if they are they shouldn't be classified as mossy
+                rateChange(ii) = 1; % if its 0 would be off during wake and on in sleep so should be GC 
+            end 
+        end
     %step 7 - make co-recorded cells -for a given cell how many other cells
     %were recorded on that shank or tetrode - overlap tetrodes might
     %complicate this. use tetShankChan. 
@@ -255,15 +274,19 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [ wfPC1,awakeMeanRate, burstIndex, co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [wfPC1,rateChange, burstIndex, co_recorded_shank_ex_capped];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
         %trying a k-means on different features 
         cluster_data = [PC1,PC2];%         cluster_data = [wfPC1,PC1];
         %normalize variances 
-        cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
-        [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
+        cluster_data = cluster_data./nanstd(cluster_data,0,1);      
+
+        %get clear histology labels from spatData
+        clear_hist = spatData.clear_hist;
+        DG_ex_clear_hist = clear_hist(DG_ExCluster);
+        [PCA2_clusters]= kmeans_clustering(cluster_data, DG_ex_clear_hist); %try different features in here 
         %save clusters 
         save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2')
         
@@ -337,7 +360,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     legend('InCluster1', 'InCluster2', 'DG', 'CA3');
     
     figure;
-    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);
+    gscatter(wfPC1, jitter(DS2_orientations), PCA2_clusters, 'bg', '.', 12);  
     xlabel("wfPC1",'FontSize', 16)
     ylabel("DS2 orientations",'FontSize', 16)
     set(gca, 'YTick', [1,2,3,4], 'YTickLabel', {'up', 'inverting', 'down', 'no DS2'},'FontSize', 16);
@@ -413,7 +436,8 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 % 
 %     figure;
 %     hold all;
-%     gscatter(co_recorded_shank, wfPC1, PCA2_clusters, 'bg', '.', 12);
+%     gscatter(co_recorded_shank, wfPC1, PCA2_clusters, 'bg', '.',
+%     12);ratioclass
 %     xlabel("# co-recorded cells on the same shank")
 %     ylabel("wfPC1")
 
@@ -434,9 +458,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 end 
 
 function [tetShankChan, shank_channels] = makeTetShankChan(spatData,max_wf_chan,elePos) 
-    %make tetrode labels from CellIDs in spatData - needs to be adaptable
-    %for single shank probe data also!!   
-
+    %make tetrode labels from CellIDs in spatData 
 
         cellInfo = getCellInfo(spatData);
         tet = cellInfo(:,2);
@@ -610,8 +632,12 @@ function [first_pc, second_pc] = class_PCA(data)
     awakeMeanRate = data(:, 2);
     log_normalized_awakeMeanRate = log1p(normalize(awakeMeanRate));
 
+    % Apply log normalization to BI
+    BI = data(:, 3);
+    log_normalized_BI = normalize(log1p(BI));
+
     % Combine the log-normalized feature with the rest of the data
-    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4)];%, data(:, 5)];
+    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, log_normalized_BI, data(:, 4)];%data(:, 3), data(:, 4)];%, data(:, 5)];
 
     % Normalize the data
     normalized_data = zscore(transformed_data);
@@ -633,25 +659,50 @@ function [first_pc, second_pc] = class_PCA(data)
     disp(explained_ratio);
 end
 
-function [PCA2_clusters]= kmeans_clustering(cluster_data)
+function [PCA2_clusters]= kmeans_clustering(cluster_data,DG_ex_clear_hist)
 
         % Run k-means clustering
         k = 2;  % Set the number of clusters to 2
         [idx, centroids] = kmeans(cluster_data, k);    
         % creating the clustering variable 
         PCA2_clusters =idx;
-        % Plotting the clusters
+%         % Plotting the clusters
+%         figure;
+%         gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+%         hold on;
+%         scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+%         legend('Cluster 1', 'Cluster 2','Centroids'); 
+%         xlabel('feature 1')
+%         ylabel('feature 2')
+%         title('K-Means Clustering');
+            
+        % Plotting the clusters with clear histology 
         figure;
-        gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
-        hold on;
-        scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
-        legend('Cluster 1', 'Cluster 2', 'Centroids'); 
-        xlabel('feature 1')
-        ylabel('feature 2')
-        title('K-Means Clustering');
+        h = gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+        hold on;   
+        % Get colors used by gscatter
+        clusterColors = zeros(length(h), 3);
+        for i = 1:length(h)
+            clusterColors(i, :) = h(i).Color;
+        end
+        
+        % Clear the existing scatter plots to plot them again
+        delete(h);
+    
+        % Re-plot points with specified edge colors
+        for i = 1:size(cluster_data, 1)
+            if DG_ex_clear_hist(i) == 1 %clearly in GCL
+                edgeColor = 'magenta';
+            elseif DG_ex_clear_hist(i) == 2 %clearly in hilus
+                edgeColor = 'green';
+            else
+                edgeColor = 'none'; % default, in case there are other values
+            end
+            scatter(cluster_data(i, 1), cluster_data(i, 2), 'MarkerEdgeColor', edgeColor, 'MarkerFaceColor', clusterColors(idx(i), :), 'LineWidth', 2);
+        end
 end
 
-function [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
+function [DS2_orientations, DS2_max_amplitudes_variance] = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
 % are the spikes on the shank the cell was recorded on pointing up, mix of both or down.
     DS2_orientations = zeros(height(spatData),1);
     DS2_slope_per_channel = zeros(height(spatData),1);
@@ -661,7 +712,8 @@ function [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatDa
 
     %loop through spatData(DG_ExCluster) and find the DS2 amplitudes and make a distance from DS2 discrete measure per shank or section of one shank probe 
     
-    for it_DG_Ex = DG_ExCluster'
+    %for it_DG_Ex = DG_ExCluster'
+    for it_DG_Ex = 1: height(spatData) %you were loopoing over the excluster only this may have affected everything 
         for it_ep = 1: height(elePos)
             if strcmp(spatData.dataset(it_DG_Ex),elePos.dataset(it_ep))
                 if option == 1
@@ -755,6 +807,57 @@ function jitteredData = jitterCategorical(data)
         end
     end
 end
+
+
+function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster)
+
+    sleep_idx = 6;
+    wake_idx = 1:5;
+
+    spatData_dgex = spatData(DG_ExCluster,:);
+    silent_or_active = zeros(height(spatData_dgex),1);
+    for itC = 1: height(spatData_dgex)
+        if all(spatData.nSpks(itC,wake_idx) < 75)
+            silent_or_active(itC) = 0; %active in sleep only
+        else 
+            silent_or_active(itC) = 1; %active in wake trial
+        end
+    end
+
+    tetShankChan_dgex = tetShankChan(DG_ExCluster,:);
+
+    unique_dataset = unique(spatData_dgex.dataset);
+    
+    meanRate_per_shank = nan(height(spatData_dgex), 1);
+    ratio_silent_or_active_per_shank = nan(height(spatData_dgex), 1);
+    
+    for ii = 1:height(spatData_dgex)
+        % Find indices of rows with the same dataset
+        dataset_idxs = find(strcmp(spatData_dgex.dataset, spatData_dgex.dataset{ii}));
+        
+        % Current shank for this iteration
+        current_shank = tetShankChan_dgex(ii, 2);
+        shank_idxs = dataset_idxs(tetShankChan_dgex(dataset_idxs, 2) == current_shank);
+        
+        silent_count = sum(silent_or_active(shank_idxs) == 0);
+        active_count = sum(silent_or_active(shank_idxs) == 1);
+        
+        meanRate_per_shank(ii) = nanmean(spatData_dgex.meanRate(shank_idxs, sleep_idx));
+        
+        % Calculate the ratio
+        if silent_count > 0 && active_count == 0
+            ratio = 0;
+        elseif active_count > 0 && silent_count == 0
+            ratio = 1;
+        else
+            ratio = silent_count / (silent_count+ active_count);
+        end
+        
+        ratio_silent_or_active_per_shank(ii) = ratio;
+    end
+
+end
+
 
 
 %%% Features I'm not using for now but might be useful to keep 

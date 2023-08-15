@@ -11,13 +11,13 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 %     awakeMeanRate = nanmean(meanRate(:,1:5),2);
     burstIndex = spatData.burstIndex;
 
-
     %make indexes for sleep and wake trials 
 
     maxWakeMeanRate= zeros(size(spatData,1),1);
     sleep_idx = zeros(size(spatData,1),1);
     awakeMeanRate = zeros(size(spatData,1),1);
     wake_idx = cell(size(spatData,1),1);
+    TP_latency = zeros(size(spatData,1),1);
     for itCl = 1: height(spatData)
         sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
         sleep_idx_temp = find(sleep_trials);
@@ -34,7 +34,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         wake_idx{itCl} = wake_idx_temp;
         maxWakeMeanRate(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
         awakeMeanRate(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
-
+        TP_latency(itCl) = nanmax(spatData.TP_latency(itCl,wake_idx_temp));
     end 
      
 
@@ -52,9 +52,9 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
     mossy_cluster =[];
     granule_cluster =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 1
+        if PCA2_clusters(ii) == 2
             granule_cluster = [granule_cluster;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
-        elseif PCA2_clusters(ii) == 2
+        elseif PCA2_clusters(ii) == 1
             mossy_cluster = [mossy_cluster;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
         end
     end
@@ -64,8 +64,8 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 %     cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
 %     clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted.  
 
-    cluster = {granule_cluster, mossy_cluster, DG_ExCluster}; 
-    clustername = {'granule', 'mossy', 'Pooled Data'}; %to me used as title change also depending on clusters plotted.  
+    cluster = {granule_cluster, mossy_cluster,DG_ExCluster}; 
+    clustername = {'granule', 'mossy','DG Excitatory cells'}; %to me used as title change also depending on clusters plotted.  
 
 %     %need to get this outside the loop - also this is the length of the
 %     DG ex cluster - not spat data so the indexing needs adjusting 
@@ -74,13 +74,31 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 
     [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx );
 
+    %make wfPca components
+    %[wf_PC1, wf_PC2] = make_wf_pcs(DG_ExCluster, spatData);
 
     %loop over clusters and make sets of plots for each 
     for itC = 1:length(cluster)
         %make the features to be plotted 
+        maxWakeMeanRate_clu = maxWakeMeanRate(cluster{itC});
         awakeMeanRate_clu = awakeMeanRate(cluster{itC});
+        % temp checking if max rate and mean rate are different developmentally 
+        awakeMeanRate_clu = maxWakeMeanRate_clu;
+        % and same in sleep calcualtion 
         sleepMeanRate_clu = meanRate (cluster{itC},sleep_idx(cluster{itC}));
         rateChange_clu = awakeMeanRate_clu ./ sleepMeanRate_clu;
+        %rateChange can have inf values if dividing by zero in sleep and 0
+        %if rate is 0 in wake 
+        for ii = 1: length(rateChange_clu)
+            if rateChange_clu(ii) == inf || rateChange_clu(ii) == 0 %these should basically not be in the dataset but if they are they shouldn't be classified as mossy
+                rateChange_clu(ii) = 1; % if its 0 would be off during wake and on in sleep so should be GC 
+            end 
+        end
+        %make wf_PC1 
+        %wf_PC1_clu = wf_PC1(cluster{itC});
+        %make TP_latency
+        TP_latency_clu = TP_latency(cluster{itC});
+        %burst index
         burstIndex_clu = burstIndex (cluster{itC});
 %         co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
         if itC ==1
@@ -90,7 +108,14 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         elseif itC ==3
             SVAR_clu = SVAR_C; %silent to active ratio ca3 cells 
         end 
-
+        
+        %temp solution here till I add silent active ratio condition for
+        %shanks - actually this feature cant be compared in this way the
+        %means of the positions of tetrodes shouldn't be consistent with
+        %age necesarily
+        SVAR_clu = sleepMeanRate_clu; %only checking sleep for this data
+%         burstIndex_clu = TP_latency_clu; % bit that says burst index is wf_PC1
+        
         %loop over spatData and assign excitatory cells to age bins
         
         %get age from cell info
@@ -99,7 +124,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
    
         %separate the data into age bins 
         
-        age_bins = [17 20; 21 31]; %21 24; 
+        age_bins = [17 20; 21 32; 40 40]; %21 24; 
         bin_indices = zeros(size(age, 1), 1);
         
         for itA = 1:size(age, 1)
@@ -115,12 +140,13 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         %make box plots for continous variables 
         
         % Define the data for each age bin
-        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1), SVAR_clu(bin_indices == 1), rateChange_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1)];
-        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), SVAR_clu(bin_indices == 2), rateChange_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2)];
-%         data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), sleepMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
+        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1),  rateChange_clu(bin_indices == 1),SVAR_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1)];
+        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), rateChange_clu(bin_indices == 2),SVAR_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2)];
+        data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3),SVAR_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
+        %         data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), sleepMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
         
         % Create labels for the title
-        labels = {'awakeMeanRate', 'slient_to_acive_ratio', 'rateChange', 'burstIndex'};
+        labels = {'awake Mean Rate', 'rate Change','sleep mean rate', 'burst Index'};%'TP latency'};%
         
         % Create labels for age bins
         age_bin_labels = cell(1, size(age_bins, 1));
@@ -133,8 +159,9 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         for i = 1:4
             %subplot(2, 2, i);
             figure;
-            if i <= 3
-                data = {data_age_bin1(:, i), data_age_bin2(:, i)};%, data_age_bin3(:, i)}; % 
+            if i <= 3 %first three features are log scale (all mean rate)
+                data = {data_age_bin1(:, i), data_age_bin2(:, i)};
+                data = {data_age_bin1(:, i), data_age_bin2(:, i), data_age_bin3(:, i)}; % 
                 num_groups = numel(data);
                 positions = 1:num_groups;
                 for j = 1:num_groups
@@ -143,7 +170,8 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
                 end
                 set(gca, 'YScale', 'log'); % Set y-axis to log scale
             else
-                data = {data_age_bin1(:, i), data_age_bin2(:, i)};%, data_age_bin3(:, i)};
+                data = {data_age_bin1(:, i), data_age_bin2(:, i)};
+                data = {data_age_bin1(:, i), data_age_bin2(:, i), data_age_bin3(:, i)};
                 num_groups = numel(data);
                 positions = 1:num_groups;
                 for j = 1:num_groups
@@ -186,9 +214,10 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         
         %run kruskal-wallis for non-parametric data swap out variables 
     
+
         % Define the variables we want to test
-        properties = { awakeMeanRate_clu, sleepMeanRate_clu, rateChange_clu, burstIndex_clu};%, co_recorded_cells_capped_clu};
-        property_names = {'awakeMeanRate', 'sleepMeanRate', 'rateChange', 'burstIndex'};%,'co_recorded cells'};
+        properties = { awakeMeanRate_clu, rateChange_clu, SVAR_clu,  burstIndex_clu};%, co_recorded_cells_capped_clu};
+        property_names = {'awakeMeanRate', 'rateChange','sleep mean rate',  'burst Index'};%,'co_recorded cells'};'TP latency'};%
     
         KW_for_age_groups(age_bins, age, properties, property_names)
     end
@@ -218,8 +247,12 @@ function KW_for_age_groups(age_bins, age, properties, property_names)
         end
     
         % Perform the Kruskal-Wallis test
-        [p, ~, stats] = kruskalwallis(data_vector, group_vector, 'off')
+        [p, tbl, stats] = kruskalwallis(data_vector, group_vector, 'off')
         fprintf('Kruskal-Wallis test for %s: p = %.4f\n', property_names{i}, p);
+
+        % Display the table
+        disp(tbl);
+
         
         figure;
         % Post hoc test (e.g., pairwise comparisons)
@@ -236,6 +269,10 @@ function [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellIn
 % and then when it filps back it can be considered CA3 - go per rat and do
 % all depths then see if it aligns with DS2 - can only spend time on this
 % if you find a moment. 
+
+%this deosnt actually work per cluster it needs to be for all excitatory
+%cells on the same tetrode - it also doesnt work for probe data you need
+%tetshank chan for that to work and do it per shank 
 
     %itterate over clusters and find if the cells are active in sleep only or
     %in run trials for each cluster 
@@ -277,8 +314,18 @@ function [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellIn
         end
     end
 end
-
-
+function [wf_PC1, wf_PC2] = make_wf_pcs(DG_ExCluster, spatData)
+    %get wfPC1 
+    load("waveform_PCs_probes.mat",'wfPC1','wfPC2')
+    wf_PC1 = nan(height(spatData),1);
+    wf_PC2 = nan(height(spatData),1);
+    for ii = 1:height(spatData)
+        if ~isempty(find(DG_ExCluster == ii))
+            wf_PC1(ii)= wfPC1(find(DG_ExCluster == ii));
+            wf_PC2(ii)= wfPC2(find(DG_ExCluster == ii));
+        end
+    end
+end
     %normality tests 
 %         % Create histograms for each firing property
 %         for i = 1:4

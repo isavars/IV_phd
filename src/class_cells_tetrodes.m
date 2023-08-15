@@ -78,7 +78,11 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         [~, maxPos] = nanmax(nSpks(itCl,wake_idx_temp));
         WFs(itCl,:) = wf_means(itCl,maxPos); %wfs come form wake trials 
     end 
-     
+    
+    %this should be remove rate differenced caused by devleopmental changes
+    %in ps
+    %awakeMeanRate_all = maxWakeMeanRate;
+
 
     %step 1 - filter by gross histology postion CA3 , DG or ambiguous
         % reads elePos values for hist_labels - hist labels has 4
@@ -203,6 +207,14 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         sleepMeanRate = meanRate (DG_ExCluster,end);
         rateChange = awakeMeanRate ./ sleepMeanRate;
 
+        %rateChange can have inf values if dividing by zero in sleep and 0
+        %if rate is 0 in wake 
+        for ii = 1: length(rateChange)
+            if rateChange(ii) == inf || rateChange(ii) == 0 %these should basically not be in the dataset but if they are they shouldn't be classified as mossy
+                rateChange(ii) = 1; % if its 0 would be off during wake and on in sleep so should be GC 
+            end 
+        end
+
     %step 7 - make co-recorded cells -for a given cell how many other cells
     %were recorded on that shank or tetrode - overlap tetrodes might
     %complicate this. use tetShankChan. 
@@ -252,7 +264,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         
         TP_lat = TP_latency(DG_ExCluster);
 
-        data = [ TP_lat, awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];%ratio_silent_or_active_per_tet];%,slope ];%, TP_lat];%, awakeMeanRate, wfPC1  co_recorded_tet_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [ TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];%ratio_silent_or_active_per_tet];%,slope ];%, TP_lat];%, awakeMeanRate, wfPC1  co_recorded_tet_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -657,6 +669,7 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
     %itterate over cells and find if the cells are active in sleep only or
     %in run trials
     spatData_amb = spatData(DG_ExCluster,:);
+    sleep_idx_amb = sleep_idx(DG_ExCluster);
     %spatData_amb = spatData(AMB_cluster,:);
     silent_or_active = zeros(height(spatData_amb),1);
     for itC = 1: height(spatData_amb)
@@ -679,8 +692,8 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
         % Find indices of rows with the same ID, tet, age, and date
         matchingIndices = find(cellInfo(:,1) == ID & cellInfo(:,2) == tet & cellInfo(:,3) == age & cellInfo(:,5) == dates);
         %get mean rate per tet 
-        meanRate_per_tet(jj) = nanmean(spatData.meanRate(matchingIndices,sleep_idx(jj)));
-        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/sum(silent_or_active(matchingIndices) ==1);
+        meanRate_per_tet(jj) = nanmean(spatData_amb.meanRate(matchingIndices,sleep_idx_amb(jj)));
+        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/(sum(silent_or_active(matchingIndices) ==0) + sum(silent_or_active(matchingIndices) ==1));%sum(silent_or_active(matchingIndices) ==1);
         if ratio_silent_or_active_per_tet(jj) == inf
             ratio_silent_or_active_per_tet(jj) = 1;
         end
