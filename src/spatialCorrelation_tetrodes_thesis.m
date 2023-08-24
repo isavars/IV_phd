@@ -1,4 +1,4 @@
-function spatialCorrelation_thesis(spatData,clusters)
+function spatialCorrelation_tetrodes_thesis(spatData,clusters)
 %SPATIAL CORRELATION remapping outcome measure like
 %rate overlap but using spatial overlap. 
 %   1.uses map_spatialcorr and rates_transform to make this score 
@@ -14,7 +14,7 @@ function spatialCorrelation_thesis(spatData,clusters)
         rMap2ndHalf = spatData.rMap2ndHalf;
         SI_spat = spatData.SI_spat;
         nSpks = spatData.nSpks;
-               
+                
     %gather age data from cellInfo 
     
         cellInfo = getCellInfo(spatData);
@@ -41,7 +41,7 @@ function spatialCorrelation_thesis(spatData,clusters)
         wake_idx{itCl} = wake_idx_temp;
         awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
         sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
-    end
+    end 
         
     %make indexes for environment to use in comparisons with any file - this
     %should probably be a function 'environment_inds'- and I want it to find
@@ -92,20 +92,19 @@ function spatialCorrelation_thesis(spatData,clusters)
             mossy = [mossy;DG_ExCluster(ii)]; 
         elseif PCA2_clusters(ii) == 1
             granule = [granule;DG_ExCluster(ii)];
-
         end
     end 
     
-    clusters =  {granule, mossy, CA3_ExCluster}; %granule; %CA3_ExCluster; % 
-    clusternames =   {'Granule Cells', 'Mossy Cells','CA3 Pyramidal Cells'}; %{'Mossy Cells'};
+    clusters =  {granule, mossy}; %granule; %CA3_ExCluster; % 
+    clusternames =  {'Granule Cells','Mossy Cells'};%{'CA3 Pyramidal Cells'}; % 
     orange = [1, 0.5, 0];
-    colors = {orange, 'g', 'r'};
+    colors = {orange, 'g'};
 
     for itC = 1: length(clusters)
 
-        cluster = clusters{itC};
-        clustername = clusternames{itC};
-        color1 = colors{itC};
+    cluster = clusters{itC};
+    clustername = clusternames{itC};
+    color1 = colors{itC};
 
         Age =[]; 
         Environment = [];
@@ -117,7 +116,7 @@ function spatialCorrelation_thesis(spatData,clusters)
         
         %   age binning 
         
-         ageBins   =  [17 20; 21 31]; % list of age bins each spanning from col1:col2
+         ageBins   =  [17 20; 21 32; 40 40]; % list of age bins each spanning from col1:col2
          original_cluster = cluster; 
             
          for itAge=1:size(ageBins,1)
@@ -146,7 +145,7 @@ function spatialCorrelation_thesis(spatData,clusters)
                 end             
                 cluster3 = cluster3(cluster3 ~=0);          
     
-                CellCount3 = length(cluster3) %this is here for a sense check when its running displays the amount of cells in the cluster that passed the spatiality test 
+                CellCount3 = length(cluster3) %this is here for a sense check when its running
         
                 
                 % make squares from circles 
@@ -157,6 +156,11 @@ function spatialCorrelation_thesis(spatData,clusters)
                     NewSquare(itCr,:) = rates_transform(Circle,1,Square,8);
                 end
     
+                %deal with tetrode trials 
+                if isempty(DiffInd)
+                    %display('no diff trial, ignore middle column')
+                    DiffInd = FamInd;
+                end
                 
                 %get r values for all comparisons 
                 FAMSpatCorrC3 = [];        
@@ -201,10 +205,10 @@ function spatialCorrelation_thesis(spatData,clusters)
     
                 %plot of spatial correlations for current age bin/cell type
                 figure ()
-                x = categorical({'FAM vs FAM','FAM vs NOV1','FAM vs NOV2'});
-                y = [FAMOverlapC3 DIFFOverlapC3 NOVOverlapC3];%;FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4];
+                x = categorical({'FAM vs FAM','FAM vs NOV2'}); %'FAM vs NOV1',
+                y = [FAMOverlapC3  NOVOverlapC3];%;FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4]; DIFFOverlapC3
                 xticks = ({strcat('MCs : ',num2str(CellCount3))});%,strcat('INs : ',num2str(CellCount1)),strcat('C4: ',num2str(CellCount4))});
-                errors = [FAMErrC3 DIFFErrC3 NOVErrC3];%; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];
+                errors = [FAMErrC3 NOVErrC3];%; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4]; DIFFErrC3
         %         errorBars = gra_groupedbars(y, errors);
                 SpatialCorr= bar(x,y);
                 set(gca, 'FontSize', 16)
@@ -222,7 +226,6 @@ function spatialCorrelation_thesis(spatData,clusters)
                 
                 %calculate and plot of number of fields for current age bin/cell type
                 [field_num, singlefield_count,multifield_count] = field_counter(rMap, peakRate, meanRate,cluster3, color1, clustername, AgeBin, cluster_count, wake_idx);
-
 
                 %calculate proporiton of cells with fields (spatial vs non
                 %spatial
@@ -244,7 +247,7 @@ function spatialCorrelation_thesis(spatData,clusters)
                 %calculate silent vs active proportions (this one can also
                 %be for multiple envs remapping results)
                 
-                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster3, FamInd, DiffInd, NovInd );
+                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd );
                  %make pies for silent vs active 
                 activity_values= [percentage_of_silent_cells,percentage_of_active_cells] ;
                 activity_lables = {'Silent ', 'Active '};
@@ -254,38 +257,39 @@ function spatialCorrelation_thesis(spatData,clusters)
                 remapping_labels = {'Active in all', 'Active in one', 'Active in fam and nov1 only (global remap)', 'Active in fam and nov2 only (local remap)'};
                 % need to prep data for stats on proporitons
                 make_pies(remapping_values,remapping_labels, clustername, AgeBin);
-
-    
-                 % make values for stats for spatial correlation by cell by age bin
+                
+               
+                 % stats
                  FAMSpatCorrC3 = atanh(FAMSpatCorrC3);% to make it parametric for mixed anova
                  NOVSpatCorrC3 = atanh(NOVSpatCorrC3);
-                 DIFFSpatCorrC3 = atanh(DIFFSpatCorrC3);                             
+                 %DIFFSpatCorrC3 = atanh(DIFFSpatCorrC3);
+        
                  %factors for mixed anova 
                  %spatial correlations
-                 spatCorrs = [spatCorrs;FAMSpatCorrC3 ,DIFFSpatCorrC3, NOVSpatCorrC3];
+                 spatCorrs = [spatCorrs;FAMSpatCorrC3 , NOVSpatCorrC3];%[spatCorrs;FAMSpatCorrC3 ,DIFFSpatCorrC3, NOVSpatCorrC3];
                  %age bins
                  if itAge == 1
                      AgeBin1Subjects = length(FAMSpatCorrC3);
                  elseif itAge == 2
                     AgeBin2Subjects = length(FAMSpatCorrC3);
-%                  elseif itAge == 3
-%                     AgeBin3Subjects = length(FAMSpatCorrC3);       
+                 elseif itAge == 3
+                    AgeBin3Subjects = length(FAMSpatCorrC3);       
                  end
-                 
+        
                  %reset variables
                  CellCount3 = 0;
                  cluster3= original_cluster;
                 
          end  
     
-        % mixed anova for spatial correlation by cell by age bin 
+        % mixed anova 
+    
         datamat = spatCorrs;
         within_factor_names = {'Environment'};
-        between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1)];%; 3 * ones(AgeBin3Subjects, 1)];
+        between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];
         between_factor_names = {'Age'};
-        [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)       
-        %need to do pairwise for significance tests 
-
+        [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
+       
 
     end
 end 

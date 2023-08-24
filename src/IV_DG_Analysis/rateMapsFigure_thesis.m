@@ -7,6 +7,7 @@ function rateMapsFigure_thesis (data, electrode_positions, clusters, writeDir)
 % TO DO: 
 % 1. make more adaptable to different data sets when picking which rate map 
 % to delete - i could just do this on illustrator. 
+% 2. not adapted to tetrode data 
 
 
 % obtaining variables from spatData Table (I want to replace this with a
@@ -32,13 +33,36 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', '
     burstIndex(~(env=='fam' | env=='nov'| env=='diff'  | env=='sleep')) = NaN;
     SI_spat(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
 
+    %make indexes for sleep and wake trials 
+    sleepMeanRate_all= zeros(size(spatData,1),1);
+    sleep_idx = zeros(size(spatData,1),1);
+    awakeMeanRate_all = zeros(size(spatData,1),1);
+    wake_idx = cell(size(spatData,1),1);
+    for itCl = 1: height(spatData)
+        sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
+        sleep_idx_temp = find(sleep_trials);
+        if size(sleep_idx_temp,2) > 1 
+            sleep_idx(itCl) = sleep_idx_temp(2); %dealing with trial with more than one sleep
+        else 
+            sleep_idx(itCl) = sleep_idx_temp;
+        end
+        nov_trials = strcmp(string(spatData.env(itCl,:)),'nov');
+        fam_trials = strcmp(string(spatData.env(itCl,:)),'fam');
+        wake_trials = nov_trials + fam_trials; 
+        %datasets have different numbers of wake trials 
+        wake_idx_temp = find(wake_trials);
+        wake_idx{itCl} = wake_idx_temp;
+        awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
+    end 
+
         
 %prepare data for AC and waveforms  - this finds the one from the max wake
 %trial i need to find the one from the max trial in general even if its
 %sleep and for that i need an adaptable trial length feature. - create
 
     for itSp = 1: length (nSpks) 
-        [~, maxSpksPos] = max(nSpks(itSp,1:5)); %change back to all
+        [~, maxSpksPos] = max(nSpks(itSp,wake_idx{itSp})); %change back to all
         STs(itSp,:) = SpkTs(itSp, maxSpksPos);
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
         trial_duration (itSp,:) = trialDur(itSp, maxSpksPos);
@@ -82,17 +106,17 @@ trial_duration = round(trial_duration);
     end 
 
 % %     cluster1 = low_narrow;
-    cluster1 = InCluster2;
+%     cluster1 = InCluster2;
 %     cluster2 = InCluster2;
     
-    clusters = {cluster1};%, cluster2};%, cluster2};
+    clusters = {[139;185;186;187;207;210;219;229;233]};%, cluster2};%, cluster2};
 
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
 % least spatial based on the SI_spat score. 
 
     for itC = 1:length(clusters)
-        spatRank = nanmean(SI_spat(clusters{itC},1:5),2);
+        spatRank = nanmean(SI_spat(clusters{itC},wake_idx{itC}),2);
         SpatRankCluster = zeros(length(clusters{itC}),2); 
         SpatRankCluster(:,1) = clusters{itC};
         SpatRankCluster(:,2) = spatRank;

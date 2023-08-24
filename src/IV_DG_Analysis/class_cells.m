@@ -157,6 +157,10 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 
         [wfPC1,wfPC2, pca_data, diff_pca_data] = waveformPCA(DG_ExCluster,max_waveforms);
 
+        %normalize wfPC1 by age 
+        [normalized_wfPC1] = normalize_data_by_age(wfPC1, DG_ExCluster, spatData);
+        [normalized_wfPC2] = normalize_data_by_age(wfPC2, DG_ExCluster, spatData);
+
     %step 5 - make silent vs active ratio 
 
     [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster);
@@ -274,7 +278,9 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [wfPC1,rateChange, burstIndex, co_recorded_shank_ex_capped];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+%         data = [normalized_wfPC1,awakeMeanRate, burstIndex, co_recorded_shank_capped];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        %data = [slope,sleepMeanRate, burstIndex, co_recorded_shank_ex];%knierim 
+        data = [normalized_wfPC1,rateChange, normalized_wfPC2, DS2_orientations];%buzsaki 
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -313,7 +319,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
 
     %wf-pca plots 
     
-    %plot of the normalized waveforms 
+%     %plot of the normalized waveforms 
 %     figure;
 %     hold all;
 %     colors = {'b','g'};
@@ -637,7 +643,7 @@ function [first_pc, second_pc] = class_PCA(data)
     log_normalized_BI = normalize(log1p(BI));
 
     % Combine the log-normalized feature with the rest of the data
-    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, log_normalized_BI, data(:, 4)];%data(:, 3), data(:, 4)];%, data(:, 5)];
+    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4)];% log_normalized_BI, data(:, 4)];%data(:, 3), data(:, 4)];%, data(:, 5)];
 
     % Normalize the data
     normalized_data = zscore(transformed_data);
@@ -666,40 +672,40 @@ function [PCA2_clusters]= kmeans_clustering(cluster_data,DG_ex_clear_hist)
         [idx, centroids] = kmeans(cluster_data, k);    
         % creating the clustering variable 
         PCA2_clusters =idx;
-%         % Plotting the clusters
-%         figure;
-%         gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
-%         hold on;
-%         scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
-%         legend('Cluster 1', 'Cluster 2','Centroids'); 
-%         xlabel('feature 1')
-%         ylabel('feature 2')
-%         title('K-Means Clustering');
-            
-        % Plotting the clusters with clear histology 
+        % Plotting the clusters
         figure;
-        h = gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
-        hold on;   
-        % Get colors used by gscatter
-        clusterColors = zeros(length(h), 3);
-        for i = 1:length(h)
-            clusterColors(i, :) = h(i).Color;
-        end
+        gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+        hold on;
+        scatter(centroids(:, 1), centroids(:, 2), 100, 'k', 'filled');
+        legend('Cluster 1', 'Cluster 2','Centroids'); 
+        xlabel('feature 1')
+        ylabel('feature 2')
+        title('K-Means Clustering');
+            
+%         % Plotting the clusters with clear histology 
+%         figure;
+%         h = gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+%         hold on;   
+%         % Get colors used by gscatter
+%         clusterColors = zeros(length(h), 3);
+%         for i = 1:length(h)
+%             clusterColors(i, :) = h(i).Color;
+%         end
         
-        % Clear the existing scatter plots to plot them again
-        delete(h);
-    
-        % Re-plot points with specified edge colors
-        for i = 1:size(cluster_data, 1)
-            if DG_ex_clear_hist(i) == 1 %clearly in GCL
-                edgeColor = 'magenta';
-            elseif DG_ex_clear_hist(i) == 2 %clearly in hilus
-                edgeColor = 'green';
-            else
-                edgeColor = 'none'; % default, in case there are other values
-            end
-            scatter(cluster_data(i, 1), cluster_data(i, 2), 'MarkerEdgeColor', edgeColor, 'MarkerFaceColor', clusterColors(idx(i), :), 'LineWidth', 2);
-        end
+%         % Clear the existing scatter plots to plot them again
+%         delete(h);
+%     
+%         % Re-plot points with specified edge colors
+%         for i = 1:size(cluster_data, 1)
+%             if DG_ex_clear_hist(i) == 1 %clearly in GCL
+%                 edgeColor = 'magenta';
+%             elseif DG_ex_clear_hist(i) == 2 %clearly in hilus
+%                 edgeColor = 'green';
+%             else
+%                 edgeColor = 'none'; % default, in case there are other values
+%             end
+%             scatter(cluster_data(i, 1), cluster_data(i, 2), 'MarkerEdgeColor', edgeColor, 'MarkerFaceColor', clusterColors(idx(i), :), 'LineWidth', 2);
+%         end
 end
 
 function [DS2_orientations, DS2_max_amplitudes_variance] = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
@@ -858,6 +864,38 @@ function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_a
 
 end
 
+function [normalized_data] = normalize_data_by_age(data, DG_ExCluster, spatData)
+    %here we need to loop over age and make means of the exciatroy cell data for each age
+    %bin subtract for each row then loop over data and create
+    %normalized_data by subrtacting the mean for the right age bin from
+    %each row 
+    
+    %get ages to make age bins
+    cellInfo = getCellInfo(spatData);
+    age = cellInfo(:,3);
+    age = age(DG_ExCluster);
+
+    postwean_data_idx = [];
+    prewean_data_idx = [];
+   for ii = 1: height(age)
+        if age(ii) >= 21
+            postwean_data_idx = [postwean_data_idx; ii];
+        else 
+            prewean_data_idx = [prewean_data_idx; ii];
+        end
+   end 
+
+   %make means of age groups for normalizing the data 
+    postwean_data_mean = mean(data(postwean_data_idx));
+    prewean_data_mean = mean(data(prewean_data_idx));
+    
+    normalized_data = data; % Initialize with original data
+
+    % Normalize data by subtracting the mean of the right age bin
+    normalized_data(postwean_data_idx,:) = data(postwean_data_idx,:) - postwean_data_mean;
+    normalized_data(prewean_data_idx,:) = data(prewean_data_idx,:) - prewean_data_mean;
+
+end
 
 
 %%% Features I'm not using for now but might be useful to keep 

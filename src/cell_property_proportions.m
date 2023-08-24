@@ -1,5 +1,5 @@
 function cell_property_proportions (data,clusters)
-%this is going to make numbers that go into pie charts made in illustrator
+%this is going to make numbers that go into pie charts 
 %- the pie charts represent proportions of cell populations that do a
 %certain thing. This could just be a subfunction in rateOverlap_thesis
 %if it uses all the same parameters and has the same loop logic (by cluster

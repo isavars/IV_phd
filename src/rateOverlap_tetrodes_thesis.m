@@ -1,4 +1,4 @@
-function rateOverlap_thesis(data, cell_clusters)
+function rateOverlap_tetrodes_thesis(data, cell_clusters)
 %RATEOVERLAP is based on the Leutgeb et al., 2007 analysis: 
 %   1. Divide (for each cell) the mean firing rate in the less active
 %   enclosure by the mean firing rate in the more active enclosure.
@@ -23,6 +23,29 @@ load(data, 'spatData')
 %produce age data from cellInfo 
     cellInfo = getCellInfo(spatData);
     age = cellInfo(:,3);
+
+%make indexes for sleep and wake trials 
+sleepMeanRate_all= zeros(size(spatData,1),1);
+sleep_idx = zeros(size(spatData,1),1);
+awakeMeanRate_all = zeros(size(spatData,1),1);
+wake_idx = cell(size(spatData,1),1);
+for itCl = 1: height(spatData)
+    sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
+    sleep_idx_temp = find(sleep_trials);
+    if size(sleep_idx_temp,2) > 1 
+        sleep_idx(itCl) = sleep_idx_temp(2); %dealing with trial with more than one sleep
+    else 
+        sleep_idx(itCl) = sleep_idx_temp;
+    end
+    nov_trials = strcmp(string(spatData.env(itCl,:)),'nov');
+    fam_trials = strcmp(string(spatData.env(itCl,:)),'fam');
+    wake_trials = nov_trials + fam_trials; 
+    %datasets have different numbers of wake trials 
+    wake_idx_temp = find(wake_trials);
+    wake_idx{itCl} = wake_idx_temp;
+    awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+    sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
+end 
 
     
 %make indexes for environment to use in comparisons with any file - this
@@ -90,13 +113,13 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
     end 
 
-    cluster3 = CA3_ExCluster ;%granule;%CA3_ExCluster;
+    cluster3 = granule ;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
     rateOverlaps =[];
     Environment = [];
-    ageBins   =  [17 20; 21 31];  %list of age bins each spanning from col1:col2
+    ageBins   =  [17 20; 21 32; 40 40];  %list of age bins each spanning from col1:col2
    
     original_cluster = cluster3; %no idea why this is here and down below
     length(cluster3)
@@ -114,6 +137,12 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
         Newcluster3 = ismember(cluster3,ages_indexes_in_spatData);
         cluster3 = cluster3(Newcluster3);
+        
+        %deal with tetrode trials 
+        if isempty(DiffInd)
+            %display('no diff trial, ignore middle column')
+            DiffInd = FamInd;
+        end
 
       
          %do rate overlap for comparisons between the three environments 
@@ -122,7 +151,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
          diffOverlap3= nan(1,length(cluster3));
 
          for itC1 = 1: length(cluster3)
-            if any(nSpks(cluster3(itC1),1:5) > 100) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
+            if any(nSpks(cluster3(itC1),wake_idx{cluster3(itC1)}) > 100) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
                 famOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)), meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)));
                 novOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),NovInd(cluster3(itC1))));
                 diffOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),DiffInd(cluster3(itC1))));
@@ -158,9 +187,9 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         CellCount3 = length(famOverlap3) %used for adding N number to plots 
 
         figure()
-        x = categorical({'FAM vs FAM','FAM vs NOV1','FAM vs NOV2'});
-        y = [FAMOverlapC3 DIFFOverlapC3 NOVOverlapC3];%; FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4];
-        errors = [ FAMErrC3 DIFFErrC3 NOVErrC3]; %; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];
+        x = categorical({'FAM vs FAM','FAM vs NOV2'}); %'FAM vs NOV1',
+        y = [FAMOverlapC3 NOVOverlapC3];%; FAMOverlapC1 NOVOverlapC1; FAMOverlapC4 NOVOverlapC4]; DIFFOverlapC3
+        errors = [ FAMErrC3 NOVErrC3]; %; FAMErrC1  NOVErrC1;FAMErrC4 NOVErrC4];  DIFFErrC3
 %          xticks = ({strcat('GCs (',num2str(CellCount2),')'),strcat('MCs (',num2str(CellCount3),')')}); %strcat('INs (',num2str(CellCount1),')'),,strcat('C4(',num2str(CellCount4),')')});
 %         errorBars = gra_groupedbars(y, errors);
 %         errorBars = set(gca,'xticklabels', xticks);
@@ -195,7 +224,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
 %         novOverlap3 = atanh(novOverlap3);
 %         diffOverlap3 = atanh(diffOverlap3);
         
-        rateOverlaps = [rateOverlaps;famOverlap3,diffOverlap3,novOverlap3];
+        rateOverlaps = [rateOverlaps;famOverlap3,novOverlap3]; %diffOverlap3,
         if itAge == 1
             AgeBin1Subjects = length(famOverlap3);
         elseif itAge == 2
@@ -214,7 +243,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     %ive decided to use simple mixed anova from mathworks 
     datamat = rateOverlaps;
     within_factor_names = {'Environment'};
-    between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1)];% 3 * ones(AgeBin3Subjects, 1)];% ]; %
+    between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];% ]; %
     between_factor_names = {'Age'};
     [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
 

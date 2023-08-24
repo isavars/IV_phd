@@ -35,15 +35,14 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         maxWakeMeanRate(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
         awakeMeanRate(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
         TP_latency(itCl) = nanmax(spatData.TP_latency(itCl,wake_idx_temp));
-    end 
-     
-
+        %make WFs from wake trials only
+        [~, maxPos] = nanmax(spatData.nSpks(itCl,wake_idx_temp));
+        WFs(itCl,:) = spatData.wf_means(itCl,maxPos); %wfs come form wake trials 
+    end     
 
     %gather age data from cellInfo 
     cellInfo = getCellInfo(spatData);
-
-
-    
+   
     %get excitatory cell clusters 
 
     load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')     
@@ -52,30 +51,33 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
     mossy_cluster =[];
     granule_cluster =[]; %keeping og naming convention for a second to see if this code runs 
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 2
+        if PCA2_clusters(ii) == 1
             granule_cluster = [granule_cluster;DG_ExCluster(ii)]; %for WF1_AMR_BI_CCC_new - 2 is gc and 1 is mc 
-        elseif PCA2_clusters(ii) == 1
+        elseif PCA2_clusters(ii) == 2
             mossy_cluster = [mossy_cluster;DG_ExCluster(ii)];% for WF1_AMR_BI_DS2_new - 2 is gc and 1 is mc 
         end
     end
 
     pyramidal_cluster = CA3_ExCluster;
 
-%     cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
-%     clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted.  
+    cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
+    clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted.  
 
-    cluster = {granule_cluster, mossy_cluster,DG_ExCluster}; 
-    clustername = {'granule', 'mossy','DG Excitatory cells'}; %to me used as title change also depending on clusters plotted.  
+%     cluster = {granule_cluster, mossy_cluster};%,DG_ExCluster}; 
+%     clustername = {'granule', 'mossy'};%,'DG Excitatory cells'}; %to me used as title change also depending on clusters plotted.  
 
 %     %need to get this outside the loop - also this is the length of the
 %     DG ex cluster - not spat data so the indexing needs adjusting 
 % 
 %     [~, ~, co_recorded_cells_capped] = class_cells(data,electrodes,cell_clusters);
 
-    [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx );
+    %[SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx );
 
     %make wfPca components
     %[wf_PC1, wf_PC2] = make_wf_pcs(DG_ExCluster, spatData);
+
+    %make slope
+    [slope] = make_slope(spatData, WFs);
 
     %loop over clusters and make sets of plots for each 
     for itC = 1:length(cluster)
@@ -96,25 +98,27 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         end
         %make wf_PC1 
         %wf_PC1_clu = wf_PC1(cluster{itC});
+        %make slope clu
+        slope_clu = slope(cluster{itC});
         %make TP_latency
         TP_latency_clu = TP_latency(cluster{itC});
         %burst index
         burstIndex_clu = burstIndex (cluster{itC});
 %         co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
-        if itC ==1
-            SVAR_clu = SVAR_G; %silent to active ratio granule 
-        elseif itC ==2
-            SVAR_clu = SVAR_M; %silent to active ratio mosssy
-        elseif itC ==3
-            SVAR_clu = SVAR_C; %silent to active ratio ca3 cells 
-        end 
-        
+%         if itC ==1
+%             SVAR_clu = SVAR_G; %silent to active ratio granule 
+%         elseif itC ==2
+%             SVAR_clu = SVAR_M; %silent to active ratio mosssy
+%         elseif itC ==3
+%             SVAR_clu = SVAR_C; %silent to active ratio ca3 cells 
+%         end 
+%         
         %temp solution here till I add silent active ratio condition for
         %shanks - actually this feature cant be compared in this way the
         %means of the positions of tetrodes shouldn't be consistent with
         %age necesarily
         SVAR_clu = sleepMeanRate_clu; %only checking sleep for this data
-%         burstIndex_clu = TP_latency_clu; % bit that says burst index is wf_PC1
+        %burstIndex_clu = slope_clu; % bit that says burst index is whatever you change it to here 
         
         %loop over spatData and assign excitatory cells to age bins
         
@@ -140,13 +144,12 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         %make box plots for continous variables 
         
         % Define the data for each age bin
-        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1),  rateChange_clu(bin_indices == 1),SVAR_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1)];
-        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), rateChange_clu(bin_indices == 2),SVAR_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2)];
-        data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3),SVAR_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
-        %         data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), sleepMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3)];
-        
+        data_age_bin1 = [ awakeMeanRate_clu(bin_indices == 1),  rateChange_clu(bin_indices == 1),SVAR_clu(bin_indices == 1), burstIndex_clu(bin_indices == 1), TP_latency_clu(bin_indices == 1)];
+        data_age_bin2 = [ awakeMeanRate_clu(bin_indices == 2), rateChange_clu(bin_indices == 2),SVAR_clu(bin_indices == 2), burstIndex_clu(bin_indices == 2), TP_latency_clu(bin_indices == 2)];
+        data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3),SVAR_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3), TP_latency_clu(bin_indices == 3)];
+      
         % Create labels for the title
-        labels = {'awake Mean Rate', 'rate Change','sleep mean rate', 'burst Index'};%'TP latency'};%
+        labels = {'awake Mean Rate', 'rate Change','sleep mean rate', 'burst Index', 'TP latency'};%
         
         % Create labels for age bins
         age_bin_labels = cell(1, size(age_bins, 1));
@@ -156,7 +159,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         
         % Plot separate boxplots for each variable and age bin
         figure;
-        for i = 1:4
+        for i = 1:5
             %subplot(2, 2, i);
             figure;
             if i <= 3 %first three features are log scale (all mean rate)
@@ -170,6 +173,11 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
                 end
                 set(gca, 'YScale', 'log'); % Set y-axis to log scale
             else
+%                 %normalize TPL data per age bin test
+%                 data_age_bin1_mean = mean(data_age_bin1(:, i));
+%                 data_age_bin2_mean = mean(data_age_bin2(:, i));
+%                 data_age_bin1(:, i) = data_age_bin1(:, i) - data_age_bin1_mean;
+%                 data_age_bin2(:, i) = data_age_bin2(:, i) - data_age_bin2_mean;
                 data = {data_age_bin1(:, i), data_age_bin2(:, i)};
                 data = {data_age_bin1(:, i), data_age_bin2(:, i), data_age_bin3(:, i)};
                 num_groups = numel(data);
@@ -186,41 +194,29 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
             xticklabels(age_bin_labels(1:num_groups));
     %         xtickangle(45);
         end
-%     
-%         %make bar plots for discrete variables 
-    
-%         corecorded_age_bin1 = co_recorded_cells_capped_clu(bin_indices == 1);
-%         corecorded_age_bin2 = co_recorded_cells_capped_clu(bin_indices == 2);
-% %         corecorded_age_bin3 = co_recorded_cells_capped_clu(bin_indices == 3);
-%     
-%         figure;
-%         bar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)]);%, mean(corecorded_age_bin3)]);
-%         hold on;
-%         errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)], [std(corecorded_age_bin1), std(corecorded_age_bin2)], '.');
-%         %errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2), mean(corecorded_age_bin3)], [std(corecorded_age_bin1), std(corecorded_age_bin2), std(corecorded_age_bin3)], '.');
-%         set(gca, 'XTickLabel', {'Pre-wean', 'Post-wean'});
-%         ylabel('Mean co-recorded cells');
-%         title('Mean co-recorded cells per age');
+  
         
-    %         normality tests 
-    %         % Create histograms for each firing property
-    %         for i = 1:4
-    %             figure;
-    %             histogram([data_age_bin1(:, i); data_age_bin2(:, i); data_age_bin3(:, i)], 'Normalization', 'probability');
-    %             title(sprintf('Histogram for %s', labels{i}));
-    %             xlabel('Value');
-    %             ylabel('Probability');
-    %         end
-        
-        %run kruskal-wallis for non-parametric data swap out variables 
-    
+        %run kruskal-wallis for non-parametric data swap out variables   
 
         % Define the variables we want to test
-        properties = { awakeMeanRate_clu, rateChange_clu, SVAR_clu,  burstIndex_clu};%, co_recorded_cells_capped_clu};
-        property_names = {'awakeMeanRate', 'rateChange','sleep mean rate',  'burst Index'};%,'co_recorded cells'};'TP latency'};%
+        properties = { awakeMeanRate_clu, rateChange_clu, SVAR_clu,  burstIndex_clu, TP_latency_clu};%, co_recorded_cells_capped_clu};
+        property_names = {'awakeMeanRate', 'rateChange','sleep mean rate',  'burst Index','TP latency'};%,'co_recorded cells'};
     
         KW_for_age_groups(age_bins, age, properties, property_names)
+
+        %make variables for group comparisons 
+        if itC == 1
+            granule_age_bin1 = TP_latency_clu(bin_indices == 1);
+            granule_age_bin2 = TP_latency_clu(bin_indices == 2);
+        elseif itC == 2
+            mossy_age_bin1 = TP_latency_clu(bin_indices == 1);
+            mossy_age_bin2 = TP_latency_clu(bin_indices == 2);
+        end
+
     end
+    
+    %plot_granule_mossy(granule_age_bin1, granule_age_bin2, mossy_age_bin1, mossy_age_bin2);
+
 
 end
 
@@ -254,12 +250,47 @@ function KW_for_age_groups(age_bins, age, properties, property_names)
         disp(tbl);
 
         
-        figure;
-        % Post hoc test (e.g., pairwise comparisons)
+%         figure;
+%         Post hoc test (e.g., pairwise comparisons)
 %         c = multcompare(stats, 'CType', 'dunn-sidak');  % Pairwise comparison with Dunn-Sidak correction
     end  
 
 end 
+
+function plot_granule_mossy(granule_age_bin1, granule_age_bin2, mossy_age_bin1, mossy_age_bin2)
+
+    % Combine the data for plotting
+    data_age_bin1_granule_mossy = {granule_age_bin1, mossy_age_bin1};
+    data_age_bin2_granule_mossy = {granule_age_bin2, mossy_age_bin2};
+    
+    % Plot the data in a single figure
+    figure;
+    
+    % Box plots for Age Bin 1 - Granule and Mossy
+    positions1 = [1, 2];
+    for j = 1:numel(data_age_bin1_granule_mossy)
+        boxplot(data_age_bin1_granule_mossy{j}, 'Positions', positions1(j), 'Whisker', Inf, 'BoxStyle', 'outline');
+        hold on;
+    end
+    
+    % Box plots for Age Bin 2 - Granule and Mossy
+    positions2 = [4, 5];
+    for j = 1:numel(data_age_bin2_granule_mossy)
+        boxplot(data_age_bin2_granule_mossy{j}, 'Positions', positions2(j), 'Whisker', Inf, 'BoxStyle', 'outline');
+        hold on;
+    end
+    
+    hold off;
+    
+    % Set the x-axis ticks and labels
+    xticks([mean(positions1), mean(positions2)]);
+    xticklabels({'Pre-wean (Granule and Mossy)', 'Post-wean (Granule and Mossy)'});
+    title('TP latency by Age Group for Granule and Mossy Clusters');
+    ylabel('TP latency');
+    %legend('Granule', 'Mossy', 'Location', 'NorthOutside');
+
+end
+
 
 function [SVAR_G,SVAR_M,SVAR_C ]= make_silent_vs_active_per_tet(spatData, cellInfo, cluster, sleep_idx, wake_idx )
 %this needs to read in cells from amb cluster and provide say if they are active in sleep only or at least one wake env 
@@ -326,6 +357,21 @@ function [wf_PC1, wf_PC2] = make_wf_pcs(DG_ExCluster, spatData)
         end
     end
 end
+function [slope] = make_slope(spatData, WFs)
+    % make "slope" from Knierim group (slope of best fit line 
+    % through normalized, sorted waveform peaks of the four tetrode wires)
+        slope = zeros(height(spatData), 1);        
+        for i = 1:height(spatData)            
+            waveform = WFs{i};% Select the waveform for the current index            
+            peaks = max(waveform, [], 1);% Determine the peak values for each tetrode channel         
+            sorted_peaks = sort(peaks, 'descend');% Sort the peak values in ascending order  
+            normalized_peaks = sorted_peaks./max(sorted_peaks); %(sorted_peaks - mean(sorted_peaks)) / std(sorted_peaks);% Normalize the sorted peak values      
+            x = 1:length(normalized_peaks);% Calculate the slope of the differences using linear regression
+            coeffs = polyfit(x, normalized_peaks, 1);
+            slope(i) = abs(coeffs(1));
+        end
+end 
+
     %normality tests 
 %         % Create histograms for each firing property
 %         for i = 1:4
@@ -347,4 +393,28 @@ end
 %             ylabel('Observed Cumulative Probability');
 %         end
 
+%         %make bar plots for discrete variables 
+    
+%         corecorded_age_bin1 = co_recorded_cells_capped_clu(bin_indices == 1);
+%         corecorded_age_bin2 = co_recorded_cells_capped_clu(bin_indices == 2);
+% %         corecorded_age_bin3 = co_recorded_cells_capped_clu(bin_indices == 3);
+%     
+%         figure;
+%         bar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)]);%, mean(corecorded_age_bin3)]);
+%         hold on;
+%         errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2)], [std(corecorded_age_bin1), std(corecorded_age_bin2)], '.');
+%         %errorbar([mean(corecorded_age_bin1), mean(corecorded_age_bin2), mean(corecorded_age_bin3)], [std(corecorded_age_bin1), std(corecorded_age_bin2), std(corecorded_age_bin3)], '.');
+%         set(gca, 'XTickLabel', {'Pre-wean', 'Post-wean'});
+%         ylabel('Mean co-recorded cells');
+%         title('Mean co-recorded cells per age');
+        
+    %         normality tests 
+    %         % Create histograms for each firing property
+    %         for i = 1:4
+    %             figure;
+    %             histogram([data_age_bin1(:, i); data_age_bin2(:, i); data_age_bin3(:, i)], 'Normalization', 'probability');
+    %             title(sprintf('Histogram for %s', labels{i}));
+    %             xlabel('Value');
+    %             ylabel('Probability');
+    %         end
 

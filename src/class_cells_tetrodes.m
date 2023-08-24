@@ -17,6 +17,41 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 
     %load spatial Data 
     load (data, 'spatData');
+
+    %make indexes for sleep and wake trials 
+    sleepMeanRate_all= zeros(size(spatData,1),1);
+    sleep_idx = zeros(size(spatData,1),1);
+    awakeMeanRate_all = zeros(size(spatData,1),1);
+    wake_idx = cell(size(spatData,1),1);
+    for itCl = 1: height(spatData)
+        sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
+        sleep_idx_temp = find(sleep_trials);
+        if size(sleep_idx_temp,2) > 1 
+            sleep_idx(itCl) = sleep_idx_temp(2); %dealing with trial with more than one sleep
+        else 
+            sleep_idx(itCl) = sleep_idx_temp;
+        end
+        nov_trials = strcmp(string(spatData.env(itCl,:)),'nov');
+        fam_trials = strcmp(string(spatData.env(itCl,:)),'fam');
+        wake_trials = nov_trials + fam_trials; 
+        %datasets have different numbers of wake trials 
+        wake_idx_temp = find(wake_trials);
+        wake_idx{itCl} = wake_idx_temp;
+        awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
+    end 
+
+    %remove outliers from the dataset - i belive i did a bad job cutting
+    %cells so this is here - cells need to have a minimum firing rate during sleep 
+    new_spatData = [];
+    for ii = 1:height(spatData)
+        if sleepMeanRate_all(ii) > 0.01 %&& spatData.burstIndex(ii,sleep_idx(ii)) > 0.00001%&& sleepMeanRate_all(ii) > awakeMeanRate_all(ii)%
+            new_spatData = [new_spatData; spatData(ii,:)];
+        end
+    end 
+    spatData = new_spatData;
+    height(spatData)
+
     %load useful parts from spatData
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -76,7 +111,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
         %make WFs from wake trials only
         [~, maxPos] = nanmax(nSpks(itCl,wake_idx_temp));
-        WFs(itCl,:) = wf_means(itCl,maxPos); %wfs come form wake trials 
+        WFs(itCl,:) = spatData.wf_means(itCl,maxPos); %wfs come form wake trials 
     end 
     
     %this should be remove rate differenced caused by devleopmental changes
@@ -204,7 +239,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     %differently with one big loop 
 
         awakeMeanRate = awakeMeanRate_all(DG_ExCluster);
-        sleepMeanRate = meanRate (DG_ExCluster,end);
+        sleepMeanRate = sleepMeanRate_all(DG_ExCluster);
         rateChange = awakeMeanRate ./ sleepMeanRate;
 
         %rateChange can have inf values if dividing by zero in sleep and 0
@@ -263,8 +298,17 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 %         burstIndex = burstIndex(DG_ExCluster);
         
         TP_lat = TP_latency(DG_ExCluster);
+        %normalize data for PCA
+        [normalized_TP_lat] = normalize_data_by_age(TP_lat, DG_ExCluster, spatData);
+        [normalized_awakeMeanRate] = normalize_data_by_age(sleepMeanRate, DG_ExCluster, spatData);
+        [normalized_sleepMeanRate] = normalize_data_by_age(awakeMeanRate, DG_ExCluster, spatData);
+        [normalized_rateChange] = normalize_data_by_age(rateChange, DG_ExCluster, spatData);
+        [normalized_wfPC1] = normalize_data_by_age(wfPC1, DG_ExCluster, spatData);
+        [normalized_wfPC2] = normalize_data_by_age(wfPC2, DG_ExCluster, spatData);
 
-        data = [ TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];%ratio_silent_or_active_per_tet];%,slope ];%, TP_lat];%, awakeMeanRate, wfPC1  co_recorded_tet_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [ normalized_TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];% Final combo
+        %data = [ normalized_wfPC1 , normalized_rateChange, normalized_wfPC2, DS2_orientations];%Buzsaki combo
+        %data = [ slope , normalized_sleepMeanRate, burstIndex,co_recorded_tet_DG_ex];%Knierim combo
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -399,10 +443,10 @@ function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2, lo
         low_narrow = []; %confunding cells 
         ExCluster = [];
         for itWF = 1: length (WFs)
-            if TP_latency(itWF) < 0.4 && awakeMeanRate(itWF) > 2 %&& max_burstIndex(itWF) < 0.1 %||  % this is letting some outliers in still add busrt Index cap? 
+            if TP_latency(itWF) < 0.425 && awakeMeanRate(itWF) > 2 %&& max_burstIndex(itWF) < 0.1 %||  % this is letting some outliers in still add busrt Index cap? 
                 InCluster1 = [InCluster1;itWF]; % narrow wf ins 
-            elseif TP_latency(itWF) >= 0.4  && awakeMeanRate(itWF) > 1.5 && max_burstIndex(itWF) < 0.1 %
-                InCluster2 = [InCluster2;itWF]; %wide wf ins - this sorting should include burst index and im not sure why there's a cap of 0.8 ms on width here so removing for tets
+            elseif TP_latency(itWF) >= 0.425  && awakeMeanRate(itWF) > 1.5 && max_burstIndex(itWF) < 0.02 % 0.1 is what i used to make the final clusters 
+                InCluster2 = [InCluster2;itWF]; %wide wf ins -          
             else
                 ExCluster = [ExCluster;itWF]; 
             end            
@@ -509,7 +553,7 @@ function [first_pc, second_pc] = class_PCA(data)
     log_normalized_BI = normalize(log1p(BI));
 
     % Combine the log-normalized feature with the rest of the data
-    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, log_normalized_BI, data(:, 4)];% data(:, 3), data(:, 4)]; %, data(:, 5)];% ]; %
+    transformed_data = [data(:, 1), log_normalized_awakeMeanRate, data(:, 3), data(:, 4)];% log_normalized_BI, data(:, 4)]; %, data(:, 5)];% ]; %
 
     % Normalize the data
     normalized_data = zscore(transformed_data);
@@ -693,9 +737,9 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
         matchingIndices = find(cellInfo(:,1) == ID & cellInfo(:,2) == tet & cellInfo(:,3) == age & cellInfo(:,5) == dates);
         %get mean rate per tet 
         meanRate_per_tet(jj) = nanmean(spatData_amb.meanRate(matchingIndices,sleep_idx_amb(jj)));
-        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/(sum(silent_or_active(matchingIndices) ==0) + sum(silent_or_active(matchingIndices) ==1));%sum(silent_or_active(matchingIndices) ==1);
+        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/sum(silent_or_active(matchingIndices) ==1); %(sum(silent_or_active(matchingIndices) ==0) + sum(silent_or_active(matchingIndices) ==1));%
         if ratio_silent_or_active_per_tet(jj) == inf
-            ratio_silent_or_active_per_tet(jj) = 1;
+            ratio_silent_or_active_per_tet(jj) = 0;
         end
     end
 
@@ -734,4 +778,41 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
     end
 
     
+end
+function [normalized_data] = normalize_data_by_age(data, DG_ExCluster, spatData)
+    %here we need to loop over age and make means of the exciatroy cell data for each age
+    %bin subtract for each row then loop over data and create
+    %normalized_data by subrtacting the mean for the right age bin from
+    %each row 
+    
+    %get ages to make age bins
+    cellInfo = getCellInfo(spatData);
+    age = cellInfo(:,3);
+    age = age(DG_ExCluster);
+
+    postwean_data_idx = [];
+    prewean_data_idx = [];
+    adult_data_idx = []; %because its actually 3 age bins 
+   for ii = 1: height(age)
+        if age(ii) >= 21 && age(ii) <= 32
+            postwean_data_idx = [postwean_data_idx; ii];
+        elseif age(ii) >= 16
+            prewean_data_idx = [prewean_data_idx; ii];
+        elseif age(ii) == 40
+            adult_data_idx = [adult_data_idx; ii];
+        end
+   end 
+
+   %make means of age groups for normalizing the data 
+    postwean_data_mean = mean(data(postwean_data_idx));
+    prewean_data_mean = mean(data(prewean_data_idx));
+    adult_data_mean = mean(data(adult_data_idx));
+    
+    normalized_data = data; % Initialize with original data
+
+    % Normalize data by subtracting the mean of the right age bin
+    normalized_data(postwean_data_idx,:) = data(postwean_data_idx,:) - postwean_data_mean;
+    normalized_data(prewean_data_idx,:) = data(prewean_data_idx,:) - prewean_data_mean;
+    normalized_data(adult_data_idx,:) = data(adult_data_idx,:) - adult_data_mean;
+
 end
