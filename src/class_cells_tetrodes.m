@@ -293,7 +293,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         %burst index for clustering (Knierim method) 
         burstIndex = []; 
         for it_DE = DG_ExCluster'
-            burstIndex = [burstIndex;(sum(diff(STs{it_DE}) <= 0.006))/(length(diff(STs{it_DE})))];% 0.008s produced the best bimodality 
+            burstIndex = [burstIndex;(sum(diff(STs{it_DE}) <= 0.008))/(length(diff(STs{it_DE})))];% 0.008s produced the best bimodality 
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
         
@@ -305,18 +305,24 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         [normalized_rateChange] = normalize_data_by_age(rateChange, DG_ExCluster, spatData);
         [normalized_wfPC1] = normalize_data_by_age(wfPC1, DG_ExCluster, spatData);
         [normalized_wfPC2] = normalize_data_by_age(wfPC2, DG_ExCluster, spatData);
-
-        data = [ normalized_TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];% Final combo
-        %data = [ normalized_wfPC1 , normalized_rateChange, normalized_wfPC2, DS2_orientations];%Buzsaki combo
-        %data = [ slope , normalized_sleepMeanRate, burstIndex,co_recorded_tet_DG_ex];%Knierim combo
-        [PC1, PC2]= class_PCA(data);        % run PCA
         
+%         data = [ normalized_TP_lat , awakeMeanRate, burstIndex, co_recorded_tet_DG_ex_capped];% trial combos
+% %         data = [ normalized_TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];% Final combo
+%         %data = [ normalized_wfPC1 , normalized_rateChange, normalized_wfPC2, DS2_orientations];%Buzsaki combo
+%         %data = [ slope , normalized_sleepMeanRate, burstIndex,co_recorded_tet_DG_ex];%Knierim combo
+%         [PC1, PC2]= class_PCA(data);        % run PCA
+%         
     % step 9 -run k means with PCs from second PCA and other features 
-        %trying a k-means on different features 
-        cluster_data = [PC1,PC2];%         cluster_data = [wfPC1,PC1];
-        %normalize variances 
-        cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
-        [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
+%         %trying a k-means on different features 
+%         cluster_data = [PC1,PC2];%         cluster_data = [wfPC1,PC1];
+%         %normalize variances 
+%         cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
+%         [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
+
+        %making PCA2_clusters with thresholds from probe clusters instead
+        %granule cells get labeled 1 and mossy cells get labeled 2
+        [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_lat, co_recorded_tet_capped);
+
         %save clusters 
         save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2', 'low_narrow')
         
@@ -328,16 +334,16 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     cluster2 = PCA2_clusters == 2;
     
     % Plot the histogram of the first principal component
-    figure;
-    hold on;
-    h1 = histogram(PC1(cluster1), 'NumBins', 12, 'FaceColor', 'blue');
-    h2 = histogram(PC1(cluster2), 'NumBins', 12, 'FaceColor', 'red');
-    hold off;    
-    xlabel('First Principal Component');
-    ylabel('Frequency');
-    title('Histogram of the First Principal Component');    
-    % Create a legend for the clusters
-    legend([h1 h2], 'Cluster 1', 'Cluster 2');
+%     figure;
+%     hold on;
+%     h1 = histogram(PC1(cluster1), 'NumBins', 12, 'FaceColor', 'blue');
+%     h2 = histogram(PC1(cluster2), 'NumBins', 12, 'FaceColor', 'red');
+%     hold off;    
+%     xlabel('First Principal Component');
+%     ylabel('Frequency');
+%     title('Histogram of the First Principal Component');    
+%     % Create a legend for the clusters
+%     legend([h1 h2], 'Cluster 1', 'Cluster 2');
 
     %wf-pca plots 
     
@@ -443,9 +449,9 @@ function [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2, lo
         low_narrow = []; %confunding cells 
         ExCluster = [];
         for itWF = 1: length (WFs)
-            if TP_latency(itWF) < 0.425 && awakeMeanRate(itWF) > 2 %&& max_burstIndex(itWF) < 0.1 %||  % this is letting some outliers in still add busrt Index cap? 
+            if TP_latency(itWF) < 0.4 && awakeMeanRate(itWF) > 2 % changed form 2 && max_burstIndex(itWF) < 0.1 %||  % this is letting some outliers in still add busrt Index cap? 
                 InCluster1 = [InCluster1;itWF]; % narrow wf ins 
-            elseif TP_latency(itWF) >= 0.425  && awakeMeanRate(itWF) > 1.5 && max_burstIndex(itWF) < 0.02 % 0.1 is what i used to make the final clusters 
+            elseif TP_latency(itWF) >= 0.4  && awakeMeanRate(itWF) > 1.5 && max_burstIndex(itWF) < 0.1 % changed mean rate from 1.5 to over 2 like in probes 0.1 is what i used to make the final clusters 
                 InCluster2 = [InCluster2;itWF]; %wide wf ins -          
             else
                 ExCluster = [ExCluster;itWF]; 
@@ -710,6 +716,9 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
 % all depths then see if it aligns with DS2 - can only spend time on this
 % if you find a moment. 
 
+%when this is a proportion of sum silent/(sum silent+ sum acive) 1 means
+%they are all
+
     %itterate over cells and find if the cells are active in sleep only or
     %in run trials
     spatData_amb = spatData(DG_ExCluster,:);
@@ -717,7 +726,7 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
     %spatData_amb = spatData(AMB_cluster,:);
     silent_or_active = zeros(height(spatData_amb),1);
     for itC = 1: height(spatData_amb)
-        if all(spatData.nSpks(itC,wake_idx{itC}) < 75)
+        if all(spatData.nSpks(itC,wake_idx{itC}) < 100)
             silent_or_active(itC) = 0; %active in sleep only
         else 
             silent_or_active(itC) = 1; %active in wake trial
@@ -737,10 +746,11 @@ function [meanRate_per_tet,ratio_silent_or_active_per_tet]= make_silent_vs_activ
         matchingIndices = find(cellInfo(:,1) == ID & cellInfo(:,2) == tet & cellInfo(:,3) == age & cellInfo(:,5) == dates);
         %get mean rate per tet 
         meanRate_per_tet(jj) = nanmean(spatData_amb.meanRate(matchingIndices,sleep_idx_amb(jj)));
-        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/sum(silent_or_active(matchingIndices) ==1); %(sum(silent_or_active(matchingIndices) ==0) + sum(silent_or_active(matchingIndices) ==1));%
-        if ratio_silent_or_active_per_tet(jj) == inf
-            ratio_silent_or_active_per_tet(jj) = 0;
+        ratio_silent_or_active_per_tet(jj) = sum(silent_or_active(matchingIndices) ==0)/(sum(silent_or_active(matchingIndices) ==0) + sum(silent_or_active(matchingIndices) ==1));%sum(silent_or_active(matchingIndices) ==1); %
+        if ratio_silent_or_active_per_tet(jj) == inf %this happens when there are no active cells so the ratio shoud be high -if you do proportions this doesnt happen because the denominator cant be zero
+            ratio_silent_or_active_per_tet(jj) = 1;
         end
+
     end
 
     
@@ -814,5 +824,36 @@ function [normalized_data] = normalize_data_by_age(data, DG_ExCluster, spatData)
     normalized_data(postwean_data_idx,:) = data(postwean_data_idx,:) - postwean_data_mean;
     normalized_data(prewean_data_idx,:) = data(prewean_data_idx,:) - prewean_data_mean;
     normalized_data(adult_data_idx,:) = data(adult_data_idx,:) - adult_data_mean;
+
+end
+function [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_Lat, co_recorded_tet_capped)
+    %loop over DG_ExCluster features and assing cells into a granule = 1 or
+    %mossy =2 cluster. (keeping PCA2 naming convention for code simplicity
+    %down the line). 
+    % option 1 thresholds are based on > 5th percentile of mossy
+    %cells form probe clusters
+    %option 2 thresholds are based on > 95th percentile of granule cells
+    %from the probe clusters 
+
+    % issue with TPLs they are much smaller for tetrodes than probes
+    % because of the wf- lengths consider multiplying them by a factor that
+    % matches the probe ones - for the range the tetrode wth widths are
+    % 0.73 the size of the probe ones and the max value of tetrode width is
+    % 0.65 the size of the probe one - proportion seems quite similar. i
+    % think the tpl cuttoff can be multiplied by 0.7 to adjust to the wfs
+    % in this dataset. 
+    width_adjustment = 0.7;
+    
+    PCA2_clusters = zeros(length(awakeMeanRate),1);
+    for ii = 1: length(awakeMeanRate)
+        %if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 &&
+        %TP_Lat(ii) >= 0.583333 && co_recorded_tet_capped(ii) >= 2 %follows
+        %larger than bottom 5th percentile of mossy cell group
+        if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.583333*width_adjustment && co_recorded_tet_capped(ii) >= 2
+            PCA2_clusters(ii) = 2; %its a mossy cell
+        else 
+            PCA2_clusters(ii) = 1; %its a granule cell
+        end 
+    end
 
 end

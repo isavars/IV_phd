@@ -113,7 +113,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
     end 
 
-    cluster3 = granule ;%granule;%CA3_ExCluster;
+    cluster3 = mossy ;%granule;%CA3_ExCluster;
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];

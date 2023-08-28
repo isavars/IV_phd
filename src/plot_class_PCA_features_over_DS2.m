@@ -27,10 +27,12 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
     %obtain features from saved files 
     if option ==1 
         %load data from probes 
-        load('probes_class_PCA_features.mat', 'DS2_orientations', 'co_recorded_shank_capped','wfPC1')
+        load('probes_class_PCA_features.mat', 'co_recorded_shank_capped','wfPC1')
+        load ('probes_DS2_orientations_2.mat', 'DS2_orientations')
+        load('probes_DS2_amp_per_chan.mat', 'DS2_max_amp_per_channel')
         [co_recorded_shank_capped] = make_age_filtered_data(spatData, co_recorded_shank_capped);
         [wfPC1] = make_age_filtered_data(spatData, wfPC1);
-        features = {burstIndex, awakeMeanRate, wfPC1, co_recorded_shank_capped}; 
+        features = {burstIndex, awakeMeanRate, wfPC1, co_recorded_shank_capped}; %temp switch to TP_lat
         feature_names = {'Burst Index','Mean Firing Rate (wake)','Wf-PCA PC1', 'Co-recorded Cells'};
     elseif option ==2 
         %load from tets 
@@ -40,15 +42,25 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
         feature_names = {'Burst Index', 'Mean Firing Rate (wake)', 'Trough to Peak Latency', 'Ratio of Silent to Active'};
     end 
     
-    %get DS2 orientations (new method)
-    DS2_orientations = get_DS2_labels_by_distance_from_inversion();
     
     %get ds2 orientaitons
     [age_filtered_DS2_orientations] = make_age_filtered_data(spatData, DS2_orientations);
+%     [age_filtered_DS2_max_amp_per_channel] = make_age_filtered_data(spatData, DS2_max_amp_per_channel);
 
     %gather indexes for granule and mossy 
     granule_idx = find(age_filtered_PCA2_clusters == 1);
     mossy_idx = find(age_filtered_PCA2_clusters == 2);
+
+    %get idexes for GCL and HL 
+    GCL_idx = find((age_filtered_DS2_orientations(:,1) == 2) + (age_filtered_DS2_orientations(:,1) == 3));
+    HL_idx = find(age_filtered_DS2_orientations(:,1) == 1 );
+
+    %plot normalized wfs (just doing this here) 
+
+%     ex_waveforms = spatData.waveforms(:,1);
+%     [ex_waveforms] = make_age_filtered_data(spatData, ex_waveforms);
+%     ex_waveforms= ex_waveforms(GCL_idx);%gcl only wfs
+%     [pca_data] = make_amplitude_normalized_waveforms(ex_waveforms);
 
    
     %loop through all features and make plots 
@@ -78,11 +90,26 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
         end 
     
         datasets = {feature_GC_G, feature_MC_G, feature_GC_H, feature_MC_H};
+        dataset_names = {'GCL, Granule', 'GCL, Mossy', 'Hilus, Granule', 'Hilus, Mossy'};
           
-        %make boxplots and swarmcharts 
-        make_plots(datasets,feature_name)
-        %make half violins 
-        %make_labia(datasets,feature_name)
+%         %make boxplots and swarmcharts 
+%         make_plots(datasets,feature_name,dataset_names)
+%         %make half violins 
+%         make_labia(datasets,feature_name)
+%         %make scatters with DS2 amp
+        %make_scatters(granule_idx, mossy_idx, feature, age_filtered_DS2_max_amp_per_channel)
+        
+%         %make plots for features by layer 
+%         layers_datasets = {feature(GCL_idx),feature(HL_idx)};  
+%         layers_names ={'GCL', 'HL'};
+%         make_plots(layers_datasets,feature_name,layers_names) 
+%         KW_for_datasets(layers_datasets, feature_name)
+        %make plots for features by cell type
+        clusters_datasets = {feature(granule_idx),feature(mossy_idx)};
+        clusters_names ={'Granule', 'Mossy'};
+%         make_plots(clusters_datasets,feature_name,clusters_names)
+%         KW_for_datasets(clusters_datasets, feature_name)
+        percentiles_for_datasets(clusters_datasets, feature_name,clusters_names)
     end
 
 
@@ -117,10 +144,11 @@ function [age_filtered_data] = make_age_filtered_data(spatData, data)
     %get ages to make age bins
     cellInfo = getCellInfo(spatData);
     age = cellInfo(:,3);
+    rat = cellInfo(:,1);
 
     postwean_data_idx = [];
     for ii = 1: height(age)
-        if age(ii) >= 21 
+        if age(ii) >= 0 %&& rat(ii) ~= 1099 %add rat filter also to remove unreliable hist
             postwean_data_idx = [postwean_data_idx; ii];
         end
     end 
@@ -202,15 +230,15 @@ function make_labia(datasets,feature_name)
 %         arrayfun(@(x) set(x, 'XLim', [x0, x1], 'xlabel', [], 'ylabel', [], 'xcolor', 'w', 'ycolor', 'w'), plts);
 
 end 
-function make_plots(datasets,feature_name)
+function make_plots(datasets,feature_name,dataset_names)
     figure;
     % Define positions and labels
     positions = [2, 4, 7, 9];
-    labels = {'GCL, Granule', 'GCL, Mossy', 'Hilus, Granule', 'Hilus, Mossy'}; 
+    labels = dataset_names; 
     
     % Plot boxplots at specified positions
     hold on;
-    for i = 1:4
+    for i = 1:length(datasets)
         boxplot(datasets{i}, 'positions', positions(i), 'widths', 0.5);
     end
     
@@ -220,62 +248,153 @@ function make_plots(datasets,feature_name)
     ylabel('Measurement Value');
     xlim([0, 11]);
 
-    %make stacked histograms 
+%     %make stacked histograms 
+% 
+%     figure;
+% 
+%     % Define labels
+%     labels = {'GCL, Granule', 'GCL, Mossy', 'Hilus, Granule', 'Hilus, Mossy'};
+%     
+%     % Define colors for each histogram for visibility
+%     colors = lines(numel(datasets));
+%     
+%     % Determine global x and y limits for consistent axis scaling
+%     globalXMax = -Inf;
+%     globalXMin = Inf;
+%     globalYMax = -Inf;
+%     
+%     for i = 1:numel(datasets)
+%         if ~isempty(datasets{i})
+%             globalXMax = max(globalXMax, max(datasets{i}));
+%             globalXMin = min(globalXMin, min(datasets{i}));
+%             
+%             counts = histcounts(datasets{i});
+%             globalYMax = max(globalYMax, max(counts));
+%         end
+%     end
+    
+%     % Plot the first two datasets on the top subplot
+%     subplot(2, 1, 1); 
+%     hold on;
+%     for i = 1:2
+%         if ~isempty(datasets{i})
+%             histogram(datasets{i}, 'FaceColor', colors(i, :), 'FaceAlpha', 0.5);
+%         end
+%     end
+%     title('GCL Groups');
+%     ylabel('Frequency');
+%     legend(labels(1:2), 'Location', 'Best');
+%     xlim([globalXMin, globalXMax]);
+%     ylim([0, globalYMax]);
+    
+%     % Plot the second two datasets on the bottom subplot
+%     subplot(2, 1, 2); 
+%     hold on;
+%     for i = 3:4
+%         if ~isempty(datasets{i})
+%             histogram(datasets{i}, 'FaceColor', colors(i, :), 'FaceAlpha', 0.5);
+%         end
+%     end
+%     title('Hilus Groups');
+%     ylabel('Frequency');
+%     xlabel('Measurement Value');
+%     legend(labels(3:4), 'Location', 'Best');
+%     xlim([globalXMin, globalXMax]);
+%     ylim([0, globalYMax]);
+%     
+%     sgtitle(feature_name); % Overall title for the entire figure
+
+
+
+end
+function [pca_data] = make_amplitude_normalized_waveforms(ex_waveforms)
+    pca_data = [];
+    for itEx = 1: length(ex_waveforms)
+         if ~isnan(cell2mat(ex_waveforms(itEx))) %& isequal(size(ex_waveforms(itEx)), [97 4]) %&& iscell(data)% && length(cell2mat(ex_waveforms(itEx))) == 97 %changed from 50 
+             pca_data = [pca_data; interp1(1:97, cell2mat(ex_waveforms(itEx)),1:0.48:97,'spline')];%[pca_data; interp1(1:50, cell2mat(ex_waveforms(itEx)),1:0.48:50,'spline')]
+         end
+    end
+    % Normalise so each WF peak is 1.
+    pca_data      = pca_data ./ max(pca_data,[],2);
+    % Shift WFs so that peaks aligned. - output starts at aligned peak
+    % instead of data begining 
+    [~,pkInd]  = max(pca_data,[],2);
+    firstPkInd = min(pkInd);
+    nSampsWF   = size(pca_data,2);
+    padWF      = zeros(size(pca_data));
+    maxShift = max(pkInd - firstPkInd); 
+    for itWF=1:size(pca_data,1)
+        WFShift = pkInd(itWF) - firstPkInd;
+        padWF(itWF, (1+maxShift-WFShift):(nSampsWF-WFShift+maxShift)) = pca_data(itWF, :);
+    end
+    
+    pca_data = padWF( : , firstPkInd:nSampsWF );%check ig this line works 
 
     figure;
+    hold all;
+    for ii = 1:length(ex_waveforms) 
+        plot(pca_data(ii,:));
+    end
 
-    % Define labels
-    labels = {'GCL, Granule', 'GCL, Mossy', 'Hilus, Granule', 'Hilus, Mossy'};
-    
-    % Define colors for each histogram for visibility
-    colors = lines(numel(datasets));
-    
-    % Determine global x and y limits for consistent axis scaling
-    globalXMax = -Inf;
-    globalXMin = Inf;
-    globalYMax = -Inf;
-    
-    for i = 1:numel(datasets)
-        if ~isempty(datasets{i})
-            globalXMax = max(globalXMax, max(datasets{i}));
-            globalXMin = min(globalXMin, min(datasets{i}));
-            
-            counts = histcounts(datasets{i});
-            globalYMax = max(globalYMax, max(counts));
-        end
-    end
-    
-    % Plot the first two datasets on the top subplot
-    subplot(2, 1, 1); 
-    hold on;
-    for i = 1:2
-        if ~isempty(datasets{i})
-            histogram(datasets{i}, 'FaceColor', colors(i, :), 'FaceAlpha', 0.5);
-        end
-    end
-    title('GCL Groups');
-    ylabel('Frequency');
-    legend(labels(1:2), 'Location', 'Best');
-    xlim([globalXMin, globalXMax]);
-    ylim([0, globalYMax]);
-    
-    % Plot the second two datasets on the bottom subplot
-    subplot(2, 1, 2); 
-    hold on;
-    for i = 3:4
-        if ~isempty(datasets{i})
-            histogram(datasets{i}, 'FaceColor', colors(i, :), 'FaceAlpha', 0.5);
-        end
-    end
-    title('Hilus Groups');
-    ylabel('Frequency');
-    xlabel('Measurement Value');
-    legend(labels(3:4), 'Location', 'Best');
-    xlim([globalXMin, globalXMax]);
-    ylim([0, globalYMax]);
-    
-    sgtitle(feature_name); % Overall title for the entire figure
+end
+function make_scatters(granule_idx, mossy_idx, feature, age_filtered_DS2_max_amp_per_channel)
+   figure;
 
+    % Plot granule data points in one color
+    scatter(age_filtered_DS2_max_amp_per_channel(granule_idx), feature(granule_idx), 'r', 'DisplayName', 'Granule');
+
+    hold on; % This will allow us to overlay the next scatter plot on the current one
+
+    % Plot mossy data points in another color
+    scatter(age_filtered_DS2_max_amp_per_channel(mossy_idx), feature(mossy_idx), 'b', 'DisplayName', 'Mossy');
+
+    xlabel('age_filtered_DS2_max_amp_per_channel'); % Add x-axis label
+    ylabel('Feature'); % Add y-axis label
+    title('Scatter plot of Feature vs. DS2 max amp per channel'); % Add a title
+    legend; % T
+end
+function KW_for_datasets(datasets, feature_name)
+%datasets contains the groups you want to compare for the current feature in the
+%loop
+    % Append the observations to the data vector for the feature in he loop
+    data_vector =  [];
+    group_vector =[];
+    % Loop over each group
+    for i = 1:numel(datasets)          
+        data_vector = [data_vector; datasets{i}]; 
+        % Append the group identifiers to the group vector
+        group_vector = [group_vector; repmat(i, length(datasets{i}), 1)];
+    end 
+    % Perform the Kruskal-Wallis test
+    [p, tbl, stats] = kruskalwallis(data_vector, group_vector, 'off')
+    fprintf('Kruskal-Wallis test for %s: p = %.4f\n', feature_name, p);
+
+    % Display the table
+    disp(tbl);         
+
+end 
+function percentiles_for_datasets(datasets, feature_name, dataset_name)
+%get the 5th and 95th percentiles for datasets per each feature 
+    [numSamples, numDatasets] = size(datasets);
+    
+    % Preallocate arrays for the 5% lowest and highest values for each feature
+    low5 = zeros(1, numDatasets);
+    high95 = zeros(1, numDatasets);
+    
+    % Calculate the 5% and 95% percentiles for each feature
+    for i = 1:numDatasets
+        low5(i) = prctile(datasets{i}, 5);
+        high95(i) = prctile(datasets{i}, 95);
+    end
+    
+    % Display the results with feature names
+    for i = 1:numDatasets
+        fprintf('Feature: %s\n', [feature_name dataset_name{i}]);
+        fprintf('5th percentile: %f\n', low5(i));
+        fprintf('95th percentile: %f\n\n', high95(i));
+    end
+
+end
 
 %     %make swarmchart
 %     figure;
@@ -297,4 +416,3 @@ function make_plots(datasets,feature_name)
 %     title(feature_name);
 %     ylabel('Measurement Value');
 %     xlim([0, 6]);
-end

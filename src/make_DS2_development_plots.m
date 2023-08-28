@@ -22,6 +22,23 @@ function make_DS2_development_plots(electrodes)
     mean_ds2_rate = splitapply(@nanmean, ds2_rate, age_idx);
     range_ds2_rate = splitapply(@(x) max(x) - min(x), ds2_rate, age_idx); %is this a normal standard error? 
 
+    
+    % Linear regression for mean_ds2_rate against age_unique
+    lm = fitlm(age_unique, mean_ds2_rate, 'linear');
+    
+    % Display the results of the simple regression
+    disp(lm);
+    
+    % Create a scatter plot for mean_ds2_rate vs age_unique with the regression line
+    figure;
+    scatter(age_unique, mean_ds2_rate, 'filled', 'r');
+    hold on;
+    plot(age_unique, lm.Fitted, '-b', 'LineWidth', 2);
+    xlabel('Age');
+    ylabel('Mean DS2 firing rate');
+    title('Regression of DS2 firing rate over Age (aggregated)');
+    hold off;
+
 
     % Plot mean with error bars
     figure;
@@ -226,6 +243,5 @@ function make_DS2_development_plots(electrodes)
     % with autocorrelations that are substantially different from zero, the 
     % assumption of independence might be violated.
 
-
-
 end
+

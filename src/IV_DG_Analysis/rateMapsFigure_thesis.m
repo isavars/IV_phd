@@ -109,7 +109,7 @@ trial_duration = round(trial_duration);
 %     cluster1 = InCluster2;
 %     cluster2 = InCluster2;
     
-    clusters = {[139;185;186;187;207;210;219;229;233]};%, cluster2};%, cluster2};
+    clusters = {cluster2};%, cluster2};%, cluster2};
 
 
 % create ranking of spatiallity in cluster and arrange from most spatial to

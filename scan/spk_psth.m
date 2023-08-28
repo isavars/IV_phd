@@ -1,4 +1,4 @@
-function []=spk_psth(spikeTrain, stimTimes, window, binSize, varargin)
+function [meanHist,stdHist, binEdgeTimes]=spk_psth(spikeTrain, stimTimes, window, binSize, varargin)
 % Peri-stimulus time histogram of spikes.
 %
 %       spk_psth(spikeTrain, stimTimes, window, binSize)
@@ -30,7 +30,7 @@ episodesUsed=0;
 for ii=1:length(stimTimes)
     binTemp = binEdgeTimes + stimTimes(ii);
     temp = histc(spikeTrain,binTemp);
-    if sum( temp(histFiltIndex') ) >= 5
+    if sum( temp(histFiltIndex') ) >= 0
         histByStim(ii,:) = temp;
         episodesUsed=episodesUsed+1;
     end    
@@ -39,10 +39,13 @@ end
 % Get mean histogram %
 meanHist=nansum(histByStim)./episodesUsed;
 
+%standard deviations for the plot - Iv added
+stdHist = nanstd(histByStim, [], 1); 
+
 if isempty(varargin)
-    figure;
-    bar(binEdgeTimes,meanHist,'histc');
-    shading(gca,'flat');
+%     figure;
+%     bar(binEdgeTimes,meanHist,'histc');
+%     shading(gca,'flat');
 else
     hAx=varargin{1};
     hFig=get(hAx,'parent');
@@ -52,3 +55,7 @@ else
     hold(hAx,'on');
     plot(hAx, window, [0 0], 'k-');
 end
+
+
+
+

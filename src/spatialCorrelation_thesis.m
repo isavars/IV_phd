@@ -92,7 +92,6 @@ function spatialCorrelation_thesis(spatData,clusters)
             mossy = [mossy;DG_ExCluster(ii)]; 
         elseif PCA2_clusters(ii) == 1
             granule = [granule;DG_ExCluster(ii)];
-
         end
     end 
     
@@ -144,7 +143,7 @@ function spatialCorrelation_thesis(spatData,clusters)
                         cluster3(itClu) = 0;
                     end          
                 end             
-                cluster3 = cluster3(cluster3 ~=0);          
+                cluster3 = cluster3(cluster3 ~=0)          
     
                 CellCount3 = length(cluster3) %this is here for a sense check when its running displays the amount of cells in the cluster that passed the spatiality test 
         
@@ -226,34 +225,64 @@ function spatialCorrelation_thesis(spatData,clusters)
 
                 %calculate proporiton of cells with fields (spatial vs non
                 %spatial
-                percentage_of_cells_with_fields = sum(field_num ~= 0)/length(cluster_count)*100;
-                percentage_of_cells_without_fields = 100 - percentage_of_cells_with_fields;
+                cells_with_fields = sum(field_num ~= 0);
+                cells_without_fields = length(cluster_count)-sum(field_num ~= 0);
                 %make pies for spatial vs non-spatial
-                spatiality_values= [percentage_of_cells_with_fields,percentage_of_cells_without_fields] ;
+                %spatiality_values= [cells_with_fields,cells_without_fields] ;
+                spatial_cells = length(cluster3);
+                nonSpatial_cells = length(cluster_count) - spatial_cells;
+                spatiality_values=[spatial_cells,nonSpatial_cells ];
                 spatiality_lables = {'Spatial ', 'Non-spatial '};
-                make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
-
+%                 make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
+                %make values for stats 
+          
                 %calculate proportion of multifield vs single field 
                 percentage_of_multifield_cells = (multifield_count/ (multifield_count + singlefield_count))*100;
                 percentage_of_singlefield_cells = (singlefield_count/ (multifield_count + singlefield_count))*100;
                 %make pies for feild number
-                fieldness_values= [percentage_of_multifield_cells,percentage_of_singlefield_cells] ;
+                fieldness_values= [multifield_count,singlefield_count] ;
                 fieldness_lables = {'Multi field ', 'Single field'};
-%                 make_pies(fieldness_values,fieldness_lables, clustername, AgeBin);
-  
+                make_pies(fieldness_values,fieldness_lables, clustername, AgeBin);
+               
                 %calculate silent vs active proportions (this one can also
                 %be for multiple envs remapping results)
                 
-                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster3, FamInd, DiffInd, NovInd );
+                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd );
                  %make pies for silent vs active 
                 activity_values= [percentage_of_silent_cells,percentage_of_active_cells] ;
                 activity_lables = {'Silent ', 'Active '};
-                make_pies(activity_values,activity_lables, clustername, AgeBin);
-
+                %make_pies(activity_values,activity_lables, clustername, AgeBin);
+              
                 remapping_values = [percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov];
                 remapping_labels = {'Active in all', 'Active in one', 'Active in fam and nov1 only (global remap)', 'Active in fam and nov2 only (local remap)'};
                 % need to prep data for stats on proporitons
-                make_pies(remapping_values,remapping_labels, clustername, AgeBin);
+                %make_pies(remapping_values,remapping_labels, clustername, AgeBin);
+            
+                
+                %get values for proporitons statisitics %chaneg values
+                %depending on test you want to run 
+
+                values = fieldness_values;
+
+                if itC == 1
+                    if itAge == 1
+                        granule_prewean = values;
+                    elseif itAge ==2
+                        granule_postwean = values;
+                    end 
+                elseif itC == 2
+                    if itAge == 1
+                        mossy_prewean = values;
+                    elseif itAge ==2
+                        mossy_postwean = values;
+                    end 
+                elseif itC == 3
+                    if itAge == 1
+                        CA3_prewean = values;
+                    elseif itAge ==2
+                        CA3_postwean = values;
+                    end 
+                end
 
     
                  % make values for stats for spatial correlation by cell by age bin
@@ -277,6 +306,8 @@ function spatialCorrelation_thesis(spatData,clusters)
                  cluster3= original_cluster;
                 
          end  
+
+        %% STATS
     
         % mixed anova for spatial correlation by cell by age bin 
         datamat = spatCorrs;
@@ -288,6 +319,24 @@ function spatialCorrelation_thesis(spatData,clusters)
 
 
     end
+
+    
+    %table for SPSS input 
+    % Create an array to store the data
+    data = [granule_prewean; mossy_prewean; CA3_prewean; granule_postwean; mossy_postwean; CA3_postwean];
+
+    % Create Age and CellType arrays
+    Age = [repmat({'prewean'}, [3, 1]); repmat({'postwean'}, [3, 1])];
+    CellType = {'granule'; 'mossy'; 'CA3'; 'granule'; 'mossy'; 'CA3'};
+    
+    % Convert data to table
+    T = table(Age, CellType, data(:,1), data(:,2), 'VariableNames', {'Age', 'CellType', 'Spatial', 'NonSpatial'});
+    
+    % Display the table
+    disp(T);
+
+
+
 end 
 
 function [r] = manual_map_spatialcorr(rates1, rates2, varargin)
@@ -345,7 +394,7 @@ function [field_num, singlefield_count,multifield_count] = field_counter(rMap, p
             fieldCount = 0;
         end
 
-        field_num = [field_num; zeros(num_non_spatial_cells,1)];
+        %field_num = [field_num; zeros(num_non_spatial_cells,1)]; %keeping for now just to do stats
         
         %make multi and single field counts 
         multifield_count = 0;
@@ -379,7 +428,7 @@ function make_pies(values,lables, clustername, AgeBin)
     title(['Proportion of ' lables{1} ' vs ' lables{2} ' for: ' clustername ' (' AgeBin ')'])
 end
 
-function [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd )
+function [active_count, silent_count, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd )
     %make active cells and silent cell proporitons - could also do active
     %in different environments for this one for the remapping chapter -
     %after discussing with tom what this should look like

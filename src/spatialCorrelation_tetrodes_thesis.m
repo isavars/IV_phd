@@ -137,7 +137,7 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
                 cluster_count = cluster3;
                 %remove non-spatial cells from the cluster 
                 for itClu = 1: length (cluster3) 
-                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 75) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
+                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
                         cluster3(itClu) = cluster3(itClu);
                     else
                         cluster3(itClu) = 0;
@@ -395,7 +395,7 @@ function [percentage_of_active_cells, percentage_of_silent_cells, percentage_act
     active_in_fam_and_nov = 0;
 
     for ii = cluster_count'
-        if any(nSpks(ii,wake_idx{ii}) > 75)
+        if any(nSpks(ii,wake_idx{ii}) > 100)
             active_count = active_count +1;
         else
             silent_count = silent_count +1;

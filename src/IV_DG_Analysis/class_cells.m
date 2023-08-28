@@ -140,11 +140,12 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
     % might need peak to trough amplitude or slope of peak to trough
     % amplitudes for this. 
 
-    option = 4;
+    option = 5;
 
-    [DS2_orientations, DS2_slope_per_channel] = get_DS2_orientations(spatData,DG_ExCluster,elePos, shank_channels, option, tetShankChan);
+    [DS2_orientations, DS2_slope_per_channel, DS2_max_amp_per_channel] = get_DS2_orientations(spatData,DG_ExCluster,elePos, shank_channels, option, tetShankChan);
     
     DS2_slope_per_channel = DS2_slope_per_channel(DG_ExCluster);
+    DS2_max_amp_per_channel = DS2_max_amp_per_channel(DG_ExCluster);
     DS2_orientations = DS2_orientations(DG_ExCluster);
     %turn DS2_orientations into a categorical so it can be plotted 
 %     DS2_orientations = DS2_orientations(~cellfun(@isempty, DS2_orientations)); %remove empty cells so its the same length as other features
@@ -278,9 +279,9 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-%         data = [normalized_wfPC1,awakeMeanRate, burstIndex, co_recorded_shank_capped];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [normalized_wfPC1,rateChange, normalized_wfPC2, ratio_silent_or_active_per_shank];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         %data = [slope,sleepMeanRate, burstIndex, co_recorded_shank_ex];%knierim 
-        data = [normalized_wfPC1,rateChange, normalized_wfPC2, DS2_orientations];%buzsaki 
+%         data = [normalized_wfPC1,rateChange, normalized_wfPC2, DS2_orientations];%buzsaki 
         [PC1, PC2]= class_PCA(data);        % run PCA
         
     % step 9 -run k means with PCs from second PCA and other features 
@@ -708,10 +709,11 @@ function [PCA2_clusters]= kmeans_clustering(cluster_data,DG_ex_clear_hist)
 %         end
 end
 
-function [DS2_orientations, DS2_max_amplitudes_variance] = get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
+function [DS2_orientations, DS2_slope_per_channel, DS2_max_amp_per_channel] =  get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
 % are the spikes on the shank the cell was recorded on pointing up, mix of both or down.
     DS2_orientations = zeros(height(spatData),1);
     DS2_slope_per_channel = zeros(height(spatData),1);
+    DS2_max_amp_per_channel = zeros(height(spatData),1);
     DS2_max_amplitudes_variance = nan(height(spatData),1);
     DS2_mean_amplitude_per_shank = zeros(height(spatData),1);
     DS2_orientations_option = []; %making these to look at population values on a histogram 
@@ -780,6 +782,52 @@ function [DS2_orientations, DS2_max_amplitudes_variance] = get_DS2_orientations(
                     elseif isnan(DS2_max_amplitudes_variance(it_DG_Ex))
                         DS2_orientation = nan; %no ds2
                     end
+                    DS2_orientations(it_DG_Ex) = DS2_orientation;
+                elseif option == 5 %do distance from inversion only on shanks with inversions
+                    %needs to check if theres an inversion on the shank and
+                    %find the channel the inversion is on then 
+                    %label based on the distance from inversion channel to that
+                    % of the the actual channel the cell came from 
+                    %add a condition for probe type take the whole shank if
+                    %its single channel 
+                    DS2_max_amp_per_channel(it_DG_Ex) = elePos.DS2_max_amplitude(it_ep,tetShankChan(it_DG_Ex,3));
+                    amplitude_on_channel = elePos.DS2_max_amplitude(it_ep,tetShankChan(it_DG_Ex,3));
+                    if elePos.probe_type(it_ep) == 4
+                        DS2_max_amplitudes_on_shank = elePos.DS2_max_amplitude(it_ep, shank_channels(it_DG_Ex,:));
+                    elseif elePos.probe_type(it_ep) == 1
+                        DS2_max_amplitudes_on_shank = elePos.DS2_max_amplitude(it_ep, :);
+                    end
+                    if any(DS2_max_amplitudes_on_shank > 0) && any(DS2_max_amplitudes_on_shank < 0)%theres an inverison on the shank check distance from inversion
+                        %get channel closest to 0 but making sure its not actually zero becuse of gounded channels
+                        inversion_value = min(abs(DS2_max_amplitudes_on_shank));
+                        if inversion_value ==0
+                            DS2_max_amplitudes_on_shank(DS2_max_amplitudes_on_shank == inversion_value) = [];
+                            inversion_value = min(abs(DS2_max_amplitudes_on_shank));
+                        end 
+                        inversion_chan = find(abs(DS2_max_amplitudes_on_shank) == inversion_value);
+                        % get current channel
+                        current_chan = elePos.DS2_channels(it_ep,tetShankChan(it_DG_Ex,3));
+                        %get depths from both channels and check distance
+                        inversion_chan_depth = elePos.channel_depth(it_ep,inversion_chan);
+                        current_chan_depth = elePos.channel_depth(it_ep,current_chan);
+                        distance_from_inversion = abs(current_chan_depth - inversion_chan_depth) ;
+                        
+                        if distance_from_inversion > 100 && amplitude_on_channel >0 % distance from inversion greater than 100 and positive amp
+                            DS2_orientation = 1;%up
+                        elseif distance_from_inversion > 100 && amplitude_on_channel < 0 
+                            DS2_orientation = 3;%down
+                        elseif distance_from_inversion < 100
+                            DS2_orientation = 2;%inverting
+                        end
+                    elseif all(DS2_max_amplitudes_on_shank > 0) && amplitude_on_channel > 0.2
+                        DS2_orientation = 1;%up
+                    elseif all(DS2_max_amplitudes_on_shank > 0) && amplitude_on_channel < 0.2
+                        DS2_orientation = 2;%inverting   
+                    elseif all(DS2_max_amplitudes_on_shank < 0)
+                        DS2_orientation = 3;%down
+                    elseif isnan(mean(DS2_max_amplitudes_on_shank))
+                        DS2_orientation = nan; %no ds2
+                    end 
                     DS2_orientations(it_DG_Ex) = DS2_orientation;
                 end
             end 
