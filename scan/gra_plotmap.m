@@ -1,4 +1,4 @@
-function [hMap] = gra_plotmap(map, varargin)
+function [hMap] = gra_plotmap(map,env, varargin)
 
 % Draw place map.
 %       
@@ -127,7 +127,7 @@ end
 set(opt.handle, 'tag', tagReset);
 
 % Max Rate Text %
-rate_string = num2str( max(max(map)) , '%4.1f');
+rate_string = num2str( max(max(map)), '%4.1f') + " " + string(env) ; %'%4.1f
 switch opt.text_pos     % Currently, you can have any position you want as long as it's top left.
     case 'tl'
         fs_val = 0.15;

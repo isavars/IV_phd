@@ -71,14 +71,22 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
      CA3_cluster = []; 
      AMB_cluster = []; 
 
+     pCA3_cluster =[];
+     dCA3_cluster =[];
+
      for it_cells = 1: height(spatData)
          for it_ep = 1: height(elePos)
              if strcmp(dataset(it_cells),dataset_elePos(it_ep)) 
                  hist_label = hist_labels(it_ep,tetShankChan(it_cells,2));
+                 CA3_label = elePos.CA3_labels(it_ep,tetShankChan(it_cells,2));
                  if strcmp(hist_label, "DG")
                     DG_cluster = [DG_cluster;it_cells];
-                 elseif strcmp(hist_label, "CA3")
-                    CA3_cluster = [CA3_cluster;it_cells]; 
+%                  elseif strcmp(hist_label, "CA3") 
+%                     CA3_cluster = [CA3_cluster;it_cells]; 
+                 elseif strcmp(hist_label, "CA3") && strcmp(CA3_label, "proximal")
+                    pCA3_cluster =[pCA3_cluster;it_cells];
+                 elseif strcmp(hist_label, "CA3") && strcmp(CA3_label, "distal")
+                    dCA3_cluster =[dCA3_cluster;it_cells];
                  elseif strcmp(hist_label, "AMB") %adding ambiguous cells 
                     AMB_cluster = [AMB_cluster;it_cells];                 
                  end
@@ -162,9 +170,13 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         [normalized_wfPC1] = normalize_data_by_age(wfPC1, DG_ExCluster, spatData);
         [normalized_wfPC2] = normalize_data_by_age(wfPC2, DG_ExCluster, spatData);
 
-    %step 5 - make silent vs active ratio 
+        %get normalized TPL
+        TPL = TP_latency(DG_ExCluster);
+        [normalized_TPL] = normalize_data_by_age(TPL, DG_ExCluster, spatData);
 
-    [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster);
+    %step 5 - make silent vs active ratio and mean rate per shank
+
+    [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster, awakeMeanRate_all);
 
     
     %step 6 - make "slope" from Knierim group (slope of best fit line 
@@ -279,7 +291,7 @@ function [PCA2_clusters, DG_ExCluster, co_recorded_shank_capped] = class_cells(d
         end 
 %         burstIndex = burstIndex(DG_ExCluster);
 
-        data = [normalized_wfPC1,rateChange, normalized_wfPC2, ratio_silent_or_active_per_shank];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
+        data = [normalized_wfPC1,rateChange, burstIndex, meanRate_per_shank];%[ burstIndex,sleepMeanRate, rateChange , co_recorded_shank_ex_capped];%wfPC2, DS2_orientations];%slope];% wfPC2, DS2_orientations];%%wfPC1 co_recorded_shank_capped       % Combine the variables into a matrix (aparently wfPC1 and mean rate on their own are good)
         %data = [slope,sleepMeanRate, burstIndex, co_recorded_shank_ex];%knierim 
 %         data = [normalized_wfPC1,rateChange, normalized_wfPC2, DS2_orientations];%buzsaki 
         [PC1, PC2]= class_PCA(data);        % run PCA
@@ -683,30 +695,30 @@ function [PCA2_clusters]= kmeans_clustering(cluster_data,DG_ex_clear_hist)
         ylabel('feature 2')
         title('K-Means Clustering');
             
-%         % Plotting the clusters with clear histology 
-%         figure;
-%         h = gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
-%         hold on;   
-%         % Get colors used by gscatter
-%         clusterColors = zeros(length(h), 3);
-%         for i = 1:length(h)
-%             clusterColors(i, :) = h(i).Color;
-%         end
+        % Plotting the clusters with clear histology 
+        figure;
+        h = gscatter(cluster_data(:, 1), cluster_data(:, 2), idx);
+        hold on;   
+        % Get colors used by gscatter
+        clusterColors = zeros(length(h), 3);
+        for i = 1:length(h)
+            clusterColors(i, :) = h(i).Color;
+        end
         
-%         % Clear the existing scatter plots to plot them again
-%         delete(h);
-%     
-%         % Re-plot points with specified edge colors
-%         for i = 1:size(cluster_data, 1)
-%             if DG_ex_clear_hist(i) == 1 %clearly in GCL
-%                 edgeColor = 'magenta';
-%             elseif DG_ex_clear_hist(i) == 2 %clearly in hilus
-%                 edgeColor = 'green';
-%             else
-%                 edgeColor = 'none'; % default, in case there are other values
-%             end
-%             scatter(cluster_data(i, 1), cluster_data(i, 2), 'MarkerEdgeColor', edgeColor, 'MarkerFaceColor', clusterColors(idx(i), :), 'LineWidth', 2);
-%         end
+        % Clear the existing scatter plots to plot them again
+        delete(h);
+    
+        % Re-plot points with specified edge colors
+        for i = 1:size(cluster_data, 1)
+            if DG_ex_clear_hist(i) == 1 %clearly in GCL
+                edgeColor = 'magenta';
+            elseif DG_ex_clear_hist(i) == 2 %clearly in hilus
+                edgeColor = 'green';
+            else
+                edgeColor = 'none'; % default, in case there are other values
+            end
+            scatter(cluster_data(i, 1), cluster_data(i, 2), 'MarkerEdgeColor', edgeColor, 'MarkerFaceColor', clusterColors(idx(i), :), 'LineWidth', 2);
+        end
 end
 
 function [DS2_orientations, DS2_slope_per_channel, DS2_max_amp_per_channel] =  get_DS2_orientations(spatData, DG_ExCluster,elePos, shank_channels, option, tetShankChan)
@@ -863,11 +875,12 @@ function jitteredData = jitterCategorical(data)
 end
 
 
-function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster)
+function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_active_per_shank(spatData, tetShankChan, DG_ExCluster, awakeMeanRate_all)
 
     sleep_idx = 6;
     wake_idx = 1:5;
-
+    
+    %make silent or active per cell
     spatData_dgex = spatData(DG_ExCluster,:);
     silent_or_active = zeros(height(spatData_dgex),1);
     for itC = 1: height(spatData_dgex)
@@ -877,7 +890,9 @@ function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_a
             silent_or_active(itC) = 1; %active in wake trial
         end
     end
-
+    
+    awakeMeanRate_dgex = awakeMeanRate_all(DG_ExCluster);
+    
     tetShankChan_dgex = tetShankChan(DG_ExCluster,:);
 
     unique_dataset = unique(spatData_dgex.dataset);
@@ -896,7 +911,7 @@ function [meanRate_per_shank,ratio_silent_or_active_per_shank]= make_silent_vs_a
         silent_count = sum(silent_or_active(shank_idxs) == 0);
         active_count = sum(silent_or_active(shank_idxs) == 1);
         
-        meanRate_per_shank(ii) = nanmean(spatData_dgex.meanRate(shank_idxs, sleep_idx));
+        meanRate_per_shank(ii) = nanmean(awakeMeanRate_dgex(shank_idxs)); 
         
         % Calculate the ratio
         if silent_count > 0 && active_count == 0

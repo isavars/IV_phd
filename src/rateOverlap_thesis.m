@@ -90,7 +90,12 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
         end
     end 
 
-    cluster3 = CA3_ExCluster ;%granule;%CA3_ExCluster;
+    cluster3 = mossy ;%granule;%CA3_ExCluster;
+    clustername = 'CA3pyr'; %{'Mossy'};
+
+    load('pCA3_and_dCA3_clusters_por_probe_final_data.mat', 'pCA3_cluster', 'dCA3_cluster')
+    cluster3 =dCA3_cluster; %, dCA3_cluster
+    clustername ='dCA3_cluster'; % 'dCA3_cluster'
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -122,7 +127,9 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
          diffOverlap3= nan(1,length(cluster3));
 
          for itC1 = 1: length(cluster3)
-            if any(nSpks(cluster3(itC1),1:5) > 100) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
+            if ~any(nSpks(cluster3(itC1),1:5) > 100) && (nanmax(spatData.meanRate(cluster3(itC1),1:5) < spatData.meanRate(cluster3(itC1),6)))         
+            else
+%             if any(nSpks(cluster3(itC1),1:5) > 100) && any(spatData.sig_SI(cluster3(itC1),1:5) == 1) && any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
                 famOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)), meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)));
                 novOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),NovInd(cluster3(itC1))));
                 diffOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),DiffInd(cluster3(itC1))));
@@ -217,6 +224,36 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1)];% 3 * ones(AgeBin3Subjects, 1)];% ]; %
     between_factor_names = {'Age'};
     [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
+
+    %save table for spss 
+    % Assuming spatCorrs is of size [numSubjects x numEnvironments]
+    [numSubjects, numEnvironments] = size(rateOverlaps);
+    
+    % Create a table for export
+    SubjectID = repmat((1:numSubjects)', numEnvironments, 1);
+    Environment = repelem((1:numEnvironments)', numSubjects, 1);
+    
+    % Convert the matrix to long format
+    rateOverlap = reshape(rateOverlaps, [], 1);
+    
+    % If AgeBin1Subjects, AgeBin2Subjects are the counts of subjects in each age bin
+    Ages = [ones(AgeBin1Subjects, 1); 2* ones(AgeBin2Subjects, 1)];
+    Age = [Ages;Ages;Ages]; %there's probably a better way to do that but who cares 
+    
+    % Combine everything into a table
+    T = table(SubjectID, Age, Environment, rateOverlap);
+    writetable(T, [clustername '_rateOverlaps_for_SPSS.csv'])
+
+    % Here's where we convert the long format to wide format
+    rateOverlaps1 = rateOverlaps(:,1);
+    rateOverlaps2 = rateOverlaps(:,2);
+    rateOverlaps3 = rateOverlaps(:,3);
+    SubjectID = (1:numSubjects)';
+
+    % Combine everything into a table
+    T_wide = table(SubjectID, Ages, rateOverlaps1, rateOverlaps2, rateOverlaps3);
+    writetable(T_wide, [clustername '_probes_rateOverlaps_transposed_for_SPSS.csv'])
+
 
 
 end     

@@ -38,20 +38,27 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         wake_idx_temp = find(wake_trials);
         wake_idx{itCl} = wake_idx_temp;
         awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
-        sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
+        sleepMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,sleep_idx_temp));
     end 
 
     %remove outliers from the dataset - i belive i did a bad job cutting
     %cells so this is here - cells need to have a minimum firing rate during sleep 
+    %a bunch of cells have zero mean firing rate - this is probably in
+    %recordings where sleep session was too short - you cant use peak rate
+    %becaue it wasnt trimmed down with sws!!(it was peak rate for making
+    %sleep all and the filter was set to greater than 0.1
     new_spatData = [];
+    rows =[];
     for ii = 1:height(spatData)
-        if sleepMeanRate_all(ii) > 0.01 %&& spatData.burstIndex(ii,sleep_idx(ii)) > 0.00001%&& sleepMeanRate_all(ii) > awakeMeanRate_all(ii)%
+        if sleepMeanRate_all(ii) > 0.001 %&& spatData.burstIndex(ii,sleep_idx(ii)) > 0.00001%&& sleepMeanRate_all(ii) > awakeMeanRate_all(ii)%
             new_spatData = [new_spatData; spatData(ii,:)];
+            rows = [rows;ii];
         end
     end 
     spatData = new_spatData;
     height(spatData)
 
+%     any(spatData.gridness(ii,:) > 0.3) && any(spatData.sig_SI(ii,:) > 0)%
     %load useful parts from spatData
     meanRate = spatData.meanRate;
     burstIndex = spatData.burstIndex;
@@ -116,7 +123,7 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
     
     %this should be remove rate differenced caused by devleopmental changes
     %in ps
-    %awakeMeanRate_all = maxWakeMeanRate;
+    awakeMeanRate_all = maxWakeMeanRate;
 
 
     %step 1 - filter by gross histology postion CA3 , DG or ambiguous
@@ -142,11 +149,31 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
              end
          end
      end  
-
-
+    
+    
     %step 2 - filter by excitatory vs inhibitory using trough-to-peak
     %measure, mean rate, and maybe burst index from Knierim.     
     [DG_ExCluster, CA3_ExCluster, AMB_ExCluster, InCluster1, InCluster2, low_narrow] = interneuron_filter(WFs,TP_latency,awakeMeanRate_all,max_burstIndex,DG_cluster,CA3_cluster, AMB_cluster);
+     
+
+     %filter grid cells out of the DG_ExCLuster 
+    rows =[];
+    for ii = 1:height(spatData)
+        if any(spatData.gridness(ii,:)> 0.4)
+            rows = [rows;ii];
+        end
+    end 
+    grid_cluster = [305;319;426;489]; %manually removing the cells 
+     for ii = length(DG_ExCluster)
+         if find(grid_cluster, DG_ExCluster(ii))
+             DG_ExCluster(ii) =[]; %delete that value from DG_ExCluster
+         end 
+%             more_than_two_fields = 1;%there should really be a fieldcount here but no time now just doing manually fields_counter()
+%          if any(spatData.gridness(DG_ExCluster(ii),:)> 0.5) && any(spatData.sig_SI(DG_ExCluster(ii),:) == 1) %&& more_than_two_fields == 1
+%              DG_ExCluster(ii) = [];
+%              grid_cluster = [grid_cluster;DG_ExCluster(ii)];
+%           end 
+     end
 
     
     %filter ambiguous clusters for CA3 vs DG cells using rem sleep - so in
@@ -305,26 +332,26 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
         [normalized_rateChange] = normalize_data_by_age(rateChange, DG_ExCluster, spatData);
         [normalized_wfPC1] = normalize_data_by_age(wfPC1, DG_ExCluster, spatData);
         [normalized_wfPC2] = normalize_data_by_age(wfPC2, DG_ExCluster, spatData);
-        
-%         data = [ normalized_TP_lat , awakeMeanRate, burstIndex, co_recorded_tet_DG_ex_capped];% trial combos
+%         
+%         data = [ normalized_TP_lat , awakeMeanRate, burstIndex, meanRate_per_tet];% trial combos
 % %         data = [ normalized_TP_lat , awakeMeanRate, burstIndex, ratio_silent_or_active_per_tet];% Final combo
 %         %data = [ normalized_wfPC1 , normalized_rateChange, normalized_wfPC2, DS2_orientations];%Buzsaki combo
 %         %data = [ slope , normalized_sleepMeanRate, burstIndex,co_recorded_tet_DG_ex];%Knierim combo
 %         [PC1, PC2]= class_PCA(data);        % run PCA
-%         
-    % step 9 -run k means with PCs from second PCA and other features 
+        
+% %     step 9 -run k means with PCs from second PCA and other features 
 %         %trying a k-means on different features 
 %         cluster_data = [PC1,PC2];%         cluster_data = [wfPC1,PC1];
 %         %normalize variances 
 %         cluster_data = cluster_data./nanstd(cluster_data,0,1);                 
 %         [PCA2_clusters]= kmeans_clustering(cluster_data); %try different features in here 
 
-        %making PCA2_clusters with thresholds from probe clusters instead
+%         making PCA2_clusters with thresholds from probe clusters instead
         %granule cells get labeled 1 and mossy cells get labeled 2
-        [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_lat, co_recorded_tet_capped);
+        [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_lat, co_recorded_tet_capped, normalized_TP_lat, cellInfo, DG_ExCluster,DS2_orientations, meanRate_per_tet);
 
         %save clusters 
-        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2', 'low_narrow')
+        save(cluster_filename,'PCA2_clusters','DG_ExCluster','CA3_ExCluster', 'InCluster1', 'InCluster2', 'grid_cluster')
         
 
     %testing plots - this needs to be a sub function at the very bottom 
@@ -345,26 +372,26 @@ function PCA2_clusters = class_cells_tetrodes(data,electrodes,cluster_filename)
 %     % Create a legend for the clusters
 %     legend([h1 h2], 'Cluster 1', 'Cluster 2');
 
-    %wf-pca plots 
-    
-    %plot of the normalized waveforms 
-    figure;
-    hold all;
-    colors = {'b','g'};
-    for ii = 1:length(DG_ExCluster)
-        cluster = PCA2_clusters(ii); 
-        plot(pca_data(ii,:),'Color', colors{cluster});
-    end
-
-    %plot of the second derrivative of the normalized waveforms 
-    figure;
-    hold all;
-    colors = {'b','g'};
-    for ii = 1:length(DG_ExCluster)
-        cluster = PCA2_clusters(ii); 
-        plot(diff_pca_data(ii,:),'Color', colors{cluster});
-    end
-    hold off;
+%     %wf-pca plots 
+%     
+%     %plot of the normalized waveforms 
+%     figure;
+%     hold all;
+%     colors = {'b','g'};
+%     for ii = 1:length(DG_ExCluster)
+%         cluster = PCA2_clusters(ii); 
+%         plot(pca_data(ii,:),'Color', colors{cluster});
+%     end
+% 
+%     %plot of the second derrivative of the normalized waveforms 
+%     figure;
+%     hold all;
+%     colors = {'b','g'};
+%     for ii = 1:length(DG_ExCluster)
+%         cluster = PCA2_clusters(ii); 
+%         plot(diff_pca_data(ii,:),'Color', colors{cluster});
+%     end
+%     hold off;
 
     %interneuron filter summary figure
     % Initialize an array with the same size as your data.
@@ -826,14 +853,14 @@ function [normalized_data] = normalize_data_by_age(data, DG_ExCluster, spatData)
     normalized_data(adult_data_idx,:) = data(adult_data_idx,:) - adult_data_mean;
 
 end
-function [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_Lat, co_recorded_tet_capped)
+function [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstIndex, TP_Lat, co_recorded_tet_capped, normalized_TP_lat, cellInfo, DG_ExCluster,DS2_orientations, meanRate_per_tet)
     %loop over DG_ExCluster features and assing cells into a granule = 1 or
     %mossy =2 cluster. (keeping PCA2 naming convention for code simplicity
     %down the line). 
     % option 1 thresholds are based on > 5th percentile of mossy
     %cells form probe clusters
     %option 2 thresholds are based on > 95th percentile of granule cells
-    %from the probe clusters 
+    %from the probe clusters     
 
     % issue with TPLs they are much smaller for tetrodes than probes
     % because of the wf- lengths consider multiplying them by a factor that
@@ -842,18 +869,95 @@ function [PCA2_clusters] = make_clusters_using_thresholds(awakeMeanRate,burstInd
     % 0.65 the size of the probe one - proportion seems quite similar. i
     % think the tpl cuttoff can be multiplied by 0.7 to adjust to the wfs
     % in this dataset. 
-    width_adjustment = 0.7;
+    width_adjustment = 0.65;
+    age_dg_ex= cellInfo(DG_ExCluster, 3);
     
     PCA2_clusters = zeros(length(awakeMeanRate),1);
     for ii = 1: length(awakeMeanRate)
-        %if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 &&
-        %TP_Lat(ii) >= 0.583333 && co_recorded_tet_capped(ii) >= 2 %follows
-        %larger than bottom 5th percentile of mossy cell group
-        if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.583333*width_adjustment && co_recorded_tet_capped(ii) >= 2
-            PCA2_clusters(ii) = 2; %its a mossy cell
-        else 
-            PCA2_clusters(ii) = 1; %its a granule cell
-        end 
+%         %larger than bottom 5th percentile of mossy cell group
+%         if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.583333*width_adjustment && co_recorded_tet_capped(ii) >= 2
+%             PCA2_clusters(ii) = 2; %its a mossy cell
+%         
+%         else 
+%             PCA2_clusters(ii) = 1; %its a granule cell
+%         end 
+%         %smaller than 95th percentile of granule cell group and larger than
+%         %5th percentile of mossy group -option to add age ajusted -
+%         changing the mossy burst index filter form 0 to the 95th
+%         percentile of the gc group
+          
+%           %no age filter uses mean thresholds for all ages 
+%             if awakeMeanRate(ii) <= 1.010 && burstIndex(ii) <= 0.048333 && TP_Lat(ii) <= 0.83517*width_adjustment %&& meanRate_per_tet(ii) <= 0.597901 %&& co_recorded_tet_capped(ii) <= 4
+%                 PCA2_clusters(ii) = 1; %its a granule cell
+%             elseif awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) > 0 && TP_Lat(ii) >= 0.583333*width_adjustment %&& meanRate_per_tet(ii) >= 0.085529%&& co_recorded_tet_capped(ii) >= 2
+%                 PCA2_clusters(ii) = 2; %its a mossy cell
+%             end    
+          %age filter 
+          if age_dg_ex(ii) < 21 
+              %no age filter uses mean thresholds for all ages 
+            if awakeMeanRate(ii) <= 1.010 && burstIndex(ii) <= 0.048333 && TP_Lat(ii) <= 0.83517*width_adjustment %&& meanRate_per_tet(ii) <= 0.597901 %&& co_recorded_tet_capped(ii) <= 4
+                PCA2_clusters(ii) = 1; %its a granule cell
+            elseif awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) > 0 && TP_Lat(ii) >= 0.583333*width_adjustment %&& meanRate_per_tet(ii) >= 0.085529%&& co_recorded_tet_capped(ii) >= 2
+                PCA2_clusters(ii) = 2; %its a mossy cell
+            end 
+%               %use pre-wean thresholds
+%             if awakeMeanRate(ii) <= 0.893319 && burstIndex(ii) <= 0.019234 && TP_Lat(ii) <= 0.8875*width_adjustment && co_recorded_tet_capped(ii) <= 4%&& meanRate_per_tet(ii) <= 0.597901 %
+%                 PCA2_clusters(ii) = 1; %its a granule cell
+%             elseif awakeMeanRate(ii) > 0.00883319 && burstIndex(ii) > 0 && TP_Lat(ii) >= 0.629167*width_adjustment && co_recorded_tet_capped(ii) >= 2%&& meanRate_per_tet(ii) >= 0.085529%
+%                 PCA2_clusters(ii) = 2; %its a mossy cell
+%             end 
+          else%if age_dg_ex(ii) >= 21 && age_dg_ex(ii) <= 32  %use post-weaner thresholds 
+            if awakeMeanRate(ii) <= 1.135528 && burstIndex(ii) <= 0.075000 && TP_Lat(ii) <=  0.787500*width_adjustment %&& meanRate_per_tet(ii) <= 0.5862 %&& co_recorded_tet_capped(ii) <= 4
+                PCA2_clusters(ii) = 1; %its a granule cell
+            elseif awakeMeanRate(ii) > 0.002347 && burstIndex(ii) > 0 && TP_Lat(ii) > 0.525000*width_adjustment %&& meanRate_per_tet(ii) >= 0.04043 %&& co_recorded_tet_capped(ii) >= 2
+                PCA2_clusters(ii) = 2; %its a mossy cell
+            end 
+%           elseif age_dg_ex(ii) >= 32   %use post-weaner thresholds & ds2 orientation
+%             if awakeMeanRate(ii) <= 1.135528 && burstIndex(ii) <= 0.075000 && TP_Lat(ii) <=  0.787500*width_adjustment %&& DS2_orientations(ii) == 2 %&& co_recorded_tet_capped(ii) <= 4
+%                 PCA2_clusters(ii) = 1; %its a granule cell
+%             elseif awakeMeanRate(ii) > 0.002347 && burstIndex(ii) > 0 && TP_Lat(ii) > 0.525000*width_adjustment %&& DS2_orientations(ii) == 1%&& co_recorded_tet_capped(ii) >= 2
+%                 PCA2_clusters(ii) = 2; %its a mossy cell
+%             end 
+
+          end
+%         %smaller than 95th percentile of granule cell group and larger than
+%         %5th percentile of mossy group with normalized tplat 
+%         if awakeMeanRate(ii) <= 1.010 && burstIndex(ii) <= 0.048333 && normalized_TP_lat(ii) <= 0.177512 && co_recorded_tet_capped(ii) <= 4
+%             PCA2_clusters(ii) = 1; %its a granule cell
+%         elseif awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 && normalized_TP_lat(ii) >= -0.149405 && co_recorded_tet_capped(ii) >= 2
+%             PCA2_clusters(ii) = 2; %its a mossy cell
+%         end 
+
+        %smaller than 95th percentile of granule cell group and larger than
+        %5th percentile of mossy group age adjusted + reversed 
+%         if age_dg_ex(ii) < 21 %use pre-wean thresholds
+%             if awakeMeanRate(ii) >= 0.004446 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.583333*width_adjustment %&& co_recorded_tet_capped(ii) >= 2
+%                 PCA2_clusters(ii) = 2; %its a mossy cell
+%             elseif awakeMeanRate(ii) <= 1.010 && burstIndex(ii) <= 0.048333 && TP_Lat(ii) <= 0.83517*width_adjustment && co_recorded_tet_capped(ii) <= 4
+%                 PCA2_clusters(ii) = 1; %its a granule cell
+%             end 
+%         elseif age_dg_ex(ii) >= 21 %&& age_dg_ex(ii) <= 32 %use postwean thresholds
+%             if awakeMeanRate(ii) >= 0.002347 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.525000*width_adjustment %&& co_recorded_tet_capped(ii) >= 2
+%                 PCA2_clusters(ii) = 2; %its a mossy cell
+%             elseif awakeMeanRate(ii) <= 1.135528 && burstIndex(ii) <= 0.075000 && TP_Lat(ii) <=  0.787500*width_adjustment && co_recorded_tet_capped(ii) <= 4
+%                 PCA2_clusters(ii) = 1; %its a granule cell
+%             end 
+% %         elseif age_dg_ex(ii) > 32 %use postwean thresholds
+% %             if awakeMeanRate(ii) <= 1.135528 && burstIndex(ii) <= 0.075000 && TP_Lat(ii) <=  0.787500*width_adjustment && co_recorded_tet_capped(ii) <= 4
+% %                 PCA2_clusters(ii) = 1; %its a granule cell
+% %             elseif awakeMeanRate(ii) >= 0.002347 && burstIndex(ii) >= 0 && TP_Lat(ii) >= 0.525000*width_adjustment && co_recorded_tet_capped(ii) >= 2
+% %                 PCA2_clusters(ii) = 2; %its a mossy cell
+% %             end 
+%         end 
+
+%                 %smaller than 95th percentile of granule cell group from
+%                 %clusters using awake mean rate per shank (sneaky
+%                 clusters)
+%         if awakeMeanRate(ii) <= 1.054514 && burstIndex(ii) <= 0.114424 && TP_Lat(ii) <= 0.889583*width_adjustment && co_recorded_tet_capped(ii) <= 4
+%             PCA2_clusters(ii) = 1; %its a granule cell
+%         else 
+%             PCA2_clusters(ii) = 2; %its a mossy cell
+%         end 
     end
 
 end

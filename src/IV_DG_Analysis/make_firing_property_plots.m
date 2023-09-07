@@ -7,7 +7,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 
     %params 
 
-    probe_type = 2; %1 is silicone probes, 2 is tets 
+    probe_type = 1; %1 is silicone probes, 2 is tets 
 
     %load spatData
     load (data, 'spatData');
@@ -23,6 +23,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
     maxWakeMeanRate= zeros(size(spatData,1),1);
     sleep_idx = zeros(size(spatData,1),1);
     awakeMeanRate = zeros(size(spatData,1),1);
+    sleepMeanRate = zeros(size(spatData,1),1);
     wake_idx = cell(size(spatData,1),1);
     TP_latency = zeros(size(spatData,1),1);
     for itCl = 1: height(spatData)
@@ -41,6 +42,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         wake_idx{itCl} = wake_idx_temp;
         maxWakeMeanRate(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
         awakeMeanRate(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        sleepMeanRate(itCl) = nanmean(spatData.meanRate(itCl,sleep_idx_temp));
         TP_latency(itCl) = nanmax(spatData.TP_latency(itCl,wake_idx_temp));
         %make WFs from wake trials only
         [~, maxPos] = nanmax(spatData.nSpks(itCl,wake_idx_temp));
@@ -70,37 +72,37 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 
     pyramidal_cluster = CA3_ExCluster;
 
-%     cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
-%     clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted. 
-    cluster = {granule_cluster, mossy_cluster,DG_ExCluster}; %};%
-    clustername = {'granule', 'mossy','DG Excitatory cells'}; %to me used as title change also depending on clusters plotted.  
+    cluster = {granule_cluster, mossy_cluster, pyramidal_cluster}; 
+    clustername = {'granule', 'mossy', 'CA3'}; %to me used as title change also depending on clusters plotted. 
+%     cluster = {granule_cluster, mossy_cluster,DG_ExCluster}; %};%
+%     clustername = {'granule', 'mossy','DG Excitatory cells'}; %to me used as title change also depending on clusters plotted.  
 
 
 
 
-    %get co-recorded cells and silent to active 
-    if probe_type == 1
-        load ('probes_class_PCA_features.mat', 'DS2_orientations', 'co_recorded_shank_capped','wfPC1','ratio_silent_or_active_per_shank')
-        co_recorded_cells_capped = co_recorded_shank_capped;
-        SVAR = ratio_silent_or_active_per_shank;
-    elseif probe_type ==2 
-        load ('tetrodes_class_PCA_features.mat', 'DS2_orientations', 'co_recorded_tet_capped','wfPC1','ratio_silent_or_active_per_tet')
-        co_recorded_cells_capped = co_recorded_tet_capped;
-        SVAR = ratio_silent_or_active_per_tet;
-    end
-    %make these features the length of spatdata 
-    spat_CCC = zeros(size(spatData,1),1);
-    spat_SVAR = zeros(size(spatData,1),1);
-    in_dgex_count = 0;
-    for ii = 1: height(spatData)
-        if find(ii == DG_ExCluster)
-            in_dgex_count = in_dgex_count +1;
-            spat_CCC(ii) = co_recorded_cells_capped(in_dgex_count);
-            spat_SVAR(ii) = SVAR(in_dgex_count);
-        end
-    end 
-    co_recorded_cells_capped = spat_CCC;
-    SVAR = spat_SVAR;
+%     %get co-recorded cells and silent to active 
+%     if probe_type == 1
+%         load ('probes_class_PCA_features.mat', 'DS2_orientations', 'co_recorded_shank_capped','wfPC1','ratio_silent_or_active_per_shank')
+%         co_recorded_cells_capped = co_recorded_shank_capped;
+%         SVAR = ratio_silent_or_active_per_shank;
+%     elseif probe_type ==2 
+%         load ('tetrodes_class_PCA_features.mat', 'DS2_orientations', 'co_recorded_tet_capped','wfPC1','ratio_silent_or_active_per_tet')
+%         co_recorded_cells_capped = co_recorded_tet_capped;
+%         SVAR = ratio_silent_or_active_per_tet;
+%     end
+%     %make these features the length of spatdata 
+%     spat_CCC = zeros(size(spatData,1),1);
+%     spat_SVAR = zeros(size(spatData,1),1);
+%     in_dgex_count = 0;
+%     for ii = 1: height(spatData)
+%         if find(ii == DG_ExCluster)
+%             in_dgex_count = in_dgex_count +1;
+%             spat_CCC(ii) = co_recorded_cells_capped(in_dgex_count);
+%             spat_SVAR(ii) = SVAR(in_dgex_count);
+%         end
+%     end 
+%     co_recorded_cells_capped = spat_CCC;
+%     SVAR = spat_SVAR;
 
     %make wfPca components
     %[wf_PC1, wf_PC2] = make_wf_pcs(DG_ExCluster, spatData);
@@ -119,7 +121,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         % temp checking if max rate and mean rate are different developmentally 
         awakeMeanRate_clu = maxWakeMeanRate_clu;
         % and same in sleep calcualtion 
-        sleepMeanRate_clu = meanRate (cluster{itC},sleep_idx(cluster{itC}));
+        sleepMeanRate_clu = sleepMeanRate(cluster{itC});
         rateChange_clu = awakeMeanRate_clu ./ sleepMeanRate_clu;
         %rateChange can have inf values if dividing by zero in sleep and 0
         %if rate is 0 in wake 
@@ -137,11 +139,11 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         %burst index
         burstIndex_clu = burstIndex (cluster{itC});
         %co-recorded
-        co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
-        burstIndex_clu = co_recorded_cells_capped_clu;
+%         co_recorded_cells_capped_clu = co_recorded_cells_capped(cluster{itC});
+%         burstIndex_clu = co_recorded_cells_capped_clu;
         %silent to active
-        SVAR_clu = SVAR(cluster{itC});
-        TP_latency_clu = SVAR_clu;
+%         SVAR_clu = SVAR(cluster{itC});
+%         TP_latency_clu = SVAR_clu;
 
         SVAR_clu = sleepMeanRate_clu; %only checking sleep for this data
         %burstIndex_clu = slope_clu; % bit that says burst index is whatever you change it to here 
@@ -175,7 +177,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
         data_age_bin3 = [ awakeMeanRate_clu(bin_indices == 3), rateChange_clu(bin_indices == 3),SVAR_clu(bin_indices == 3), burstIndex_clu(bin_indices == 3), TP_latency_clu(bin_indices == 3)];
       
         % Create labels for the title
-        labels = {'awake Mean Rate', 'rate Change','sleep mean rate', 'co_recorded cells', 'silent to active'};%'burst Index', 'TP latency'};%
+        labels = {'awake Mean Rate', 'rate Change','sleep mean rate', 'burst Index', 'TP latency'};% 'co_recorded cells', 'silent to active'};%
         
         % Create labels for age bins
         age_bin_labels = cell(1, size(age_bins, 1));
@@ -226,7 +228,7 @@ function make_firing_property_plots(data,electrodes,cell_clusters)
 
         % Define the variables we want to test
         properties = { awakeMeanRate_clu, rateChange_clu, SVAR_clu,  burstIndex_clu, TP_latency_clu};%, co_recorded_cells_capped_clu};
-        property_names = {'awakeMeanRate', 'rateChange','sleep mean rate', 'co_recorded cells', 'silent to active'};%'burst Index','TP latency'};%,'co_recorded cells'};
+        property_names = {'awakeMeanRate', 'rateChange','sleep mean rate', 'burst Index','TP latency'};%'co_recorded cells', 'silent to active'};%'co_recorded cells', 'silent to active'};%,'co_recorded cells'};
     
         KW_for_age_groups(age_bins, age, properties, property_names)
 

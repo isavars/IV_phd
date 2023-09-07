@@ -30,16 +30,20 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
         load('probes_class_PCA_features.mat', 'co_recorded_shank_capped','wfPC1')
         load ('probes_DS2_orientations_2.mat', 'DS2_orientations')
         load('probes_DS2_amp_per_chan.mat', 'DS2_max_amp_per_channel')
+        load('normalized_TPL_for_thresholds.mat','normalized_TPL')
+        load('mean_rate_per_shank_probes.mat', 'meanRate_per_shank')
         [co_recorded_shank_capped] = make_age_filtered_data(spatData, co_recorded_shank_capped);
         [wfPC1] = make_age_filtered_data(spatData, wfPC1);
-        features = {burstIndex, awakeMeanRate, wfPC1, co_recorded_shank_capped}; %temp switch to TP_lat
+        [meanRate_per_shank] = make_age_filtered_data(spatData, meanRate_per_shank);
+        features = {burstIndex, awakeMeanRate, TP_Lat, co_recorded_shank_capped}; %temp switch to TP_lat
         feature_names = {'Burst Index','Mean Firing Rate (wake)','Wf-PCA PC1', 'Co-recorded Cells'};
     elseif option ==2 
         %load from tets 
-        load ('tets_class_PCA_features.mat', 'DS2_orientations','ratio_silent_or_active_per_tet')
+        load ('tets_class_PCA_features.mat', 'DS2_orientations','ratio_silent_or_active_per_tet', 'co_recorded_tet_capped')
         [ratio_silent_or_active_per_tet] = make_age_filtered_data(spatData, ratio_silent_or_active_per_tet);
-        features = {burstIndex, awakeMeanRate, TP_Lat, ratio_silent_or_active_per_tet};
-        feature_names = {'Burst Index', 'Mean Firing Rate (wake)', 'Trough to Peak Latency', 'Ratio of Silent to Active'};
+        [co_recorded_tet_capped] = make_age_filtered_data(spatData, co_recorded_tet_capped);
+        features = {burstIndex, awakeMeanRate, TP_Lat, co_recorded_tet_capped};
+        feature_names = {'Burst Index', 'Mean Firing Rate (wake)', 'Trough to Peak Latency', 'Co-recorded Cells'};
     end 
     
     
@@ -92,7 +96,7 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
         datasets = {feature_GC_G, feature_MC_G, feature_GC_H, feature_MC_H};
         dataset_names = {'GCL, Granule', 'GCL, Mossy', 'Hilus, Granule', 'Hilus, Mossy'};
           
-%         %make boxplots and swarmcharts 
+        %make boxplots and swarmcharts 
 %         make_plots(datasets,feature_name,dataset_names)
 %         %make half violins 
 %         make_labia(datasets,feature_name)
@@ -107,9 +111,9 @@ function plot_class_PCA_features_over_DS2( data, clusters, option)
         %make plots for features by cell type
         clusters_datasets = {feature(granule_idx),feature(mossy_idx)};
         clusters_names ={'Granule', 'Mossy'};
-%         make_plots(clusters_datasets,feature_name,clusters_names)
+        make_plots(clusters_datasets,feature_name,clusters_names)
 %         KW_for_datasets(clusters_datasets, feature_name)
-        percentiles_for_datasets(clusters_datasets, feature_name,clusters_names)
+        percentiles_for_datasets(clusters_datasets,feature_name,clusters_names)
     end
 
 
@@ -148,7 +152,7 @@ function [age_filtered_data] = make_age_filtered_data(spatData, data)
 
     postwean_data_idx = [];
     for ii = 1: height(age)
-        if age(ii) >= 0 %&& rat(ii) ~= 1099 %add rat filter also to remove unreliable hist
+        if age(ii) <=21 %&& rat(ii) ~= 1099 %add rat filter also to remove unreliable hist
             postwean_data_idx = [postwean_data_idx; ii];
         end
     end 

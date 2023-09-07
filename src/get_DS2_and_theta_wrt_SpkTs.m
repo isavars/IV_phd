@@ -8,11 +8,11 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
 % stats. 
 
 %big problem - the spike times for ds2 are based on shortened trials and
-%didnt preserve the oridingal trial length when they were cut down to the
-%sleep epochs - youb are going to have to reverse engineer this - the sleep
+%didnt preserve the original trial length when they were cut down to the
+%sleep epochs -  reverse engineering this - the sleep
 %epochs are found in all_sleep_data_for_DS2_sleepData.mat basically youll
-%need to locate which epoch each DS2 spike time is in and add the start
-%time of the epoch to that timestamp. 
+%need to locate which epoch each spike time is in and subtract the start
+%time of the epoch plut the cummulative time to that timestamp. 
 
     % load spike times for each cluster during the sleep trial 
     load(data, 'spatData')
@@ -24,11 +24,9 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
         SpkTs_sleep{ii} = spatData.SpkTs{ii,sleep_idx};
     end
     
-    % all these spike times need to be adjusted back to cut trial times
-    % using sleep epochs :( 
+
     %load sleep epochs
-    %msubfunciton that shifts the time stamps using sleep epochs -
-    %only needs to be done for DS2 comparison  
+    %subfunciton that shifts the time stamps using sleep epochs  
     [adjusted_SpkTs_sleep] = adjust_timestamps(spatData,SpkTs_sleep);
     %get DS2 spiketimes per cell 
     [DS2_SpkTs] =get_DS2_Spks(spatData, electrodes);
@@ -64,7 +62,7 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
     %make peri-stimulus time histogram - trying for 1st cell
     spikeTrain = adjusted_SpkTs_sleep; %spike times in seconds
     DS2Times= DS2_SpkTs;
-    window = [-250 250]; %1s in ms
+    window = [-500 500]; %1s in ms
     binSize = 20;
 
 
@@ -89,7 +87,6 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
             % Calculate baseline rate
             baselineRate = nanmean(meanHist(baselineIndices));
 
-            peakRate
             
             % Calculate the firing rate ratio for each bin
             firingRateRatios = meanHist / baselineRate;
@@ -102,14 +99,14 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
         
         figure;
         bar(binEdgeTimes, populationMean, 'histc');
-        title(['Population Mean Response:' clustername] );
+        title(['Population Mean Response to DS2:' clustername] );
         hold on;
 %         fill([binEdgeTimes, fliplr(binEdgeTimes)], [populationMean+populationStd, fliplr(populationMean-populationStd)], 'r', 'FaceAlpha', 0.3, 'EdgeColor', 'none');
         figure;
         plot(binEdgeTimes, populationMean, 'LineWidth', 2);
         xlabel('Time (s)');
         ylabel('Mean Spike Rate');
-        title(['Population Mean Response:' clustername] );
+        title(['Population Mean Response to DS2:' clustername] );
         xlim([min(binEdgeTimes) max(binEdgeTimes)]);
         ax = gca;
         ax.XTick = [min(binEdgeTimes) 0 max(binEdgeTimes)]; % Set x-axis ticks to show start, middle (stimulus time), and end of the window
@@ -117,13 +114,13 @@ function get_DS2_and_theta_wrt_SpkTs (data, electrodes, clusters)
 
         populationPeakRatioMean = nanmean(allCellsPeakRatios, 1);
 
-        % Plotting peak firing ratio
-        figure;
-        plot(binEdgeTimes, populationPeakRatioMean, 'LineWidth', 2);
-        xlabel('Time (s)');
-        ylabel('Mean Peak Firing Ratio');
-        title(['Mean Peak Firing Ratio for ' clustername]);
-        grid on;
+%         % Plotting peak firing ratio
+%         figure;
+%         plot(binEdgeTimes, populationPeakRatioMean, 'LineWidth', 2);
+%         xlabel('Time (s)');
+%         ylabel('Mean Peak Firing Ratio');
+%         title(['Mean Peak Firing Ratio for ' clustername]);
+%         grid on;
 
 
         
@@ -158,7 +155,7 @@ function [DS2_SpkTs] =get_DS2_Spks(spatData, electrodes)
 
 end     
 
-function [adjusted_SpkTs_sleep] = adjust_timestamps(spatData,SpkTs_sleep);
+function [adjusted_SpkTs_sleep] = adjust_timestamps(spatData,SpkTs_sleep)
     load('all_sleep_data_for_DS2_sleepData.mat', 'sleepData')
     adjusted_SpkTs_sleep = cell(size(SpkTs_sleep)); % Initialize with the same size as SpkTs_sleep
     

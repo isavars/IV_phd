@@ -24,6 +24,7 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
     sleepMeanRate_all= zeros(size(spatData,1),1);
     sleep_idx = zeros(size(spatData,1),1);
     awakeMeanRate_all = zeros(size(spatData,1),1);
+    maxAwakeMeanRate_all = zeros(size(spatData,1),1);
     wake_idx = cell(size(spatData,1),1);
     for itCl = 1: height(spatData)
         sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
@@ -40,6 +41,7 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
         wake_idx_temp = find(wake_trials);
         wake_idx{itCl} = wake_idx_temp;
         awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+        maxAwakeMeanRate_all(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
         sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
     end 
         
@@ -137,13 +139,13 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
                 cluster_count = cluster3;
                 %remove non-spatial cells from the cluster 
                 for itClu = 1: length (cluster3) 
-                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
+                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 100) && any(SI_spat(cluster3(itClu),wake_idx{cluster3(itClu)}) > 0.2) %&& any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
                         cluster3(itClu) = cluster3(itClu);
                     else
                         cluster3(itClu) = 0;
                     end          
                 end             
-                cluster3 = cluster3(cluster3 ~=0);          
+                cluster3 = cluster3(cluster3 ~=0);         
     
                 CellCount3 = length(cluster3) %this is here for a sense check when its running
         
@@ -222,42 +224,84 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
                         ylabel('Spatial Correlation', 'FontSize', 16);
     %                     xlabel('Cell Type: N');
                         ylim([0 0.6]);
-    
+
+                %calculat peak rates and SI scores of spatial cells for
+                %stats reporting 
+
+                SI_scores = [];
+                peak_rates = [];
+                for ii = 1: length(cluster3)
+                    [~, maxSpksPos] = nanmax(spatData.nSpks(cluster3(ii),wake_idx{cluster3(ii)})); 
+                    SI_spat_temp = spatData.SI_spat(cluster3(ii),maxSpksPos);
+                    SI_scores = [SI_scores; SI_spat_temp];
+                    peak_rates_temp = spatData.peakRate(cluster3(ii),maxSpksPos);                    
+                    peak_rates = [peak_rates; peak_rates_temp];
+                end    
                 
                 %calculate and plot of number of fields for current age bin/cell type
                 [field_num, singlefield_count,multifield_count] = field_counter(rMap, peakRate, meanRate,cluster3, color1, clustername, AgeBin, cluster_count, wake_idx);
 
                 %calculate proporiton of cells with fields (spatial vs non
                 %spatial
-                percentage_of_cells_with_fields = sum(field_num ~= 0)/length(cluster_count)*100;
-                percentage_of_cells_without_fields = 100 - percentage_of_cells_with_fields;
+                cells_with_fields = sum(field_num ~= 0);
+                cells_without_fields = length(cluster_count)-sum(field_num ~= 0);
+
                 %make pies for spatial vs non-spatial
-                spatiality_values= [percentage_of_cells_with_fields,percentage_of_cells_without_fields] ;
+                spatiality_values= [cells_with_fields,cells_without_fields] ;
+                spatial_cells = length(field_num);    
+                nonSpatial_cells = length(cluster_count) - spatial_cells;
+                field_count_all_cells = [field_num; zeros(nonSpatial_cells,1)];                
+%                 spatiality_values=[spatial_cells,nonSpatial_cells ];
                 spatiality_lables = {'Spatial ', 'Non-spatial '};
-                make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
+%                 make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
+
+
 
                 %calculate proportion of multifield vs single field 
                 percentage_of_multifield_cells = (multifield_count/ (multifield_count + singlefield_count))*100;
                 percentage_of_singlefield_cells = (singlefield_count/ (multifield_count + singlefield_count))*100;
                 %make pies for feild number
-                fieldness_values= [percentage_of_multifield_cells,percentage_of_singlefield_cells] ;
+                fieldness_values= [multifield_count,singlefield_count] ;
                 fieldness_lables = {'Multi field ', 'Single field'};
-%                 make_pies(fieldness_values,fieldness_lables, clustername, AgeBin);
+                make_pies(fieldness_values,fieldness_lables, clustername, AgeBin);
   
                 %calculate silent vs active proportions (this one can also
                 %be for multiple envs remapping results)
                 
-                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd );
+                [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd, maxAwakeMeanRate_all, sleepMeanRate_all, spatData);
                  %make pies for silent vs active 
                 activity_values= [percentage_of_silent_cells,percentage_of_active_cells] ;
                 activity_lables = {'Silent ', 'Active '};
                 make_pies(activity_values,activity_lables, clustername, AgeBin);
 
                 remapping_values = [percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov];
-                remapping_labels = {'Active in all', 'Active in one', 'Active in fam and nov1 only (global remap)', 'Active in fam and nov2 only (local remap)'};
+                remapping_labels = {'Active in all', 'Active in one Base', 'Active in Base only', 'Active in Diff only'};
                 % need to prep data for stats on proporitons
                 make_pies(remapping_values,remapping_labels, clustername, AgeBin);
                 
+                %get values for proporitons statisitics %chaneg values
+                %depending on test you want to run 
+
+                values = fieldness_values;
+                value_name = 'fieldness_values';
+
+                if itC == 1
+                    if itAge == 1
+                        granule_prewean = values;
+                    elseif itAge ==2
+                        granule_postwean = values;
+                    elseif itAge ==3
+                        granule_adult = values;
+                    end 
+                elseif itC == 2
+                    if itAge == 1
+                        mossy_prewean = values;
+                    elseif itAge ==2
+                        mossy_postwean = values;
+                    elseif itAge ==3
+                        mossy_adult = values;                        
+                    end 
+                end                
                
                  % stats
                  FAMSpatCorrC3 = atanh(FAMSpatCorrC3);% to make it parametric for mixed anova
@@ -281,6 +325,8 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
                  cluster3= original_cluster;
                 
          end  
+
+        %% STATS
     
         % mixed anova 
     
@@ -289,9 +335,72 @@ function spatialCorrelation_tetrodes_thesis(spatData,clusters)
         between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];
         between_factor_names = {'Age'};
         [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
-       
+        
+        %save table for spss - so you cna do the post hoc 
+        % Assuming spatCorrs is of size [numSubjects x numEnvironments]
+        [numSubjects, numEnvironments] = size(spatCorrs);
+        
+        % Create a table for export
+        SubjectID = repmat((1:numSubjects)', numEnvironments, 1);
+        Environment = repelem((1:numEnvironments)', numSubjects, 1);
+        
+        % Convert the matrix to long format
+        SpatialCorrelation = reshape(spatCorrs, [], 1);
+        
+        % If AgeBin1Subjects, AgeBin2Subjects are the counts of subjects in each age bin
+        Ages = [ones(AgeBin1Subjects, 1); 2* ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];
+        Age = [Ages;Ages]; %there's probably a better way to do that but who cares - repreating ages per num of environments
+        
+        % Combine everything into a table
+        T = table(SubjectID, Age, Environment, SpatialCorrelation);
+        writetable(T, [clustername '_tetrodes_spatCorrs_for_SPSS.csv'])
 
     end
+
+    %table for SPSS input - to compare proportions - remove CA3 cluster
+    % Create an array to store the data
+    data = [granule_prewean; mossy_prewean; granule_postwean; mossy_postwean; granule_adult; mossy_adult];
+
+    % Create Age and CellType arrays
+    Age = [repmat({'prewean'}, [2, 1]); repmat({'postwean'}, [2, 1]); repmat({'adult'}, [2, 1])];
+    CellType = {'granule'; 'mossy'; 'granule'; 'mossy'; 'granule'; 'mossy'};
+    
+    % Convert data to table
+    T = table(Age, CellType, data(:,1), data(:,2), 'VariableNames', {'Age', 'CellType', 'Spatial', 'NonSpatial'});
+    
+    % Display the table
+    disp(T);
+
+%     %table for spss when comparing individual values per cell in an anova 
+% 
+%     % Create data array
+%     data = [granule_prewean; mossy_prewean; granule_postwean; mossy_postwean; granule_adult; mossy_adult];
+%     
+%     % Create Age and CellType arrays
+%     Age = [repmat({'prewean'}, [length(granule_prewean) + length(mossy_prewean),1 ]); 
+%            repmat({'postwean'}, [length(granule_postwean) + length(mossy_postwean), 1]);
+%            repmat({'adult'}, [length(granule_adult) + length(mossy_adult), 1])];
+%            
+%     CellType = [repmat({'granule'}, [length(granule_prewean), 1]);
+%                 repmat({'mossy'}, [length(mossy_prewean), 1]);
+%                 repmat({'granule'}, [length(granule_postwean), 1]);
+%                 repmat({'mossy'}, [length(mossy_postwean), 1]);
+%                 repmat({'granule'}, [length(granule_adult), 1]);
+%                 repmat({'mossy'}, [length(mossy_adult), 1])];
+% 
+%     disp(length(Age));
+%     disp(length(CellType));
+%     disp(length(data));
+% 
+%     
+%     % Convert data to table
+%     T = table(Age, CellType, data, 'VariableNames', {'Age', 'CellType', value_name});
+%     
+%     % Display the table
+%     disp(T);
+% %     swtest(data)
+% 
+%     writetable(T, [value_name '_tetrode_data_for_spss.csv']);
 end 
 
 function [r] = manual_map_spatialcorr(rates1, rates2, varargin)
@@ -339,7 +448,7 @@ function [field_num, singlefield_count,multifield_count] = field_counter(rMap, p
             stats = regionprops(map_rate_thr, 'Area');
             Areas = cell2mat(struct2cell(stats));
             for itA = 1:length(Areas)
-                if Areas(itA) >= 25 && Areas(itA) <= 200
+                if Areas(itA) >= 25 && Areas(itA) <= 200 %changed min to 15
                     fieldCount = fieldCount + 1;
                 end
             end
@@ -349,7 +458,7 @@ function [field_num, singlefield_count,multifield_count] = field_counter(rMap, p
             fieldCount = 0;
         end
 
-        field_num = [field_num; zeros(num_non_spatial_cells,1)];
+%         field_num = [field_num; zeros(num_non_spatial_cells,1)];
         
         %make multi and single field counts 
         multifield_count = 0;
@@ -362,9 +471,12 @@ function [field_num, singlefield_count,multifield_count] = field_counter(rMap, p
             end 
         end 
         
+        spatial_cells = length(field_num);    
+        nonSpatial_cells = length(cluster_count) - spatial_cells;
+        field_count_all_cells = [field_num; zeros(nonSpatial_cells,1)]; 
         %plot field numbers 
          figure; 
-         histogram(field_num,'FaceColor', color1, 'FaceAlpha', 0.5);
+         histogram(field_count_all_cells,'FaceColor', color1, 'FaceAlpha', 0.5);
          set(gca, 'FontSize', 16) % Adjust the font size to your preference
          titlename = ['Number of Fields for ' AgeBin ': ' clustername];
 %          titlename = ['Number of Fields for: ' clustername];
@@ -383,7 +495,7 @@ function make_pies(values,lables, clustername, AgeBin)
     title(['Proportion of ' lables{1} ' vs ' lables{2} ' for: ' clustername ' (' AgeBin ')'])
 end
 
-function [percentage_of_active_cells, percentage_of_silent_cells, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd )
+function [active_count, silent_count, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd, maxAwakeMeanRate_all, sleepMeanRate_all, spatData)
     %make active cells and silent cell proporitons - could also do active
     %in different environments for this one for the remapping chapter -
     %after discussing with tom what this should look like
@@ -395,23 +507,81 @@ function [percentage_of_active_cells, percentage_of_silent_cells, percentage_act
     active_in_fam_and_nov = 0;
 
     for ii = cluster_count'
-        if any(nSpks(ii,wake_idx{ii}) > 100)
-            active_count = active_count +1;
-        else
+        if ~any(nSpks(ii,wake_idx{ii}) > 100) && (maxAwakeMeanRate_all(ii) < sleepMeanRate_all(ii))%changed to 100 make it a bit stricter
             silent_count = silent_count +1;
+        else
+            active_count = active_count +1;
+        end
+%         if any(nSpks(ii,wake_idx{ii}) > 100) %&& (awakeMeanRate_all(ii) > sleepMeanRate_all(ii))%changed to 100 make it a bit stricter
+%             active_count = active_count +1;
+%         else
+%             silent_count = silent_count +1;
+%         end
+
+        if all(nSpks(ii,wake_idx{ii}) > 100)
+            active_in_all = active_in_all + 1;
+        elseif nSpks(ii,FamInd(ii,1)) > 100 && nSpks(ii,FamInd(ii,2)) > 100
+            active_in_fam_and_diff = active_in_fam_and_diff + 1; %changing this one to active in all baselines name stays the same but postion and label are good
+        elseif nSpks(ii,NovInd(ii)) > 100
+            active_in_fam_and_nov = active_in_fam_and_nov + 1; %and this one is active in nov only 
+        elseif sum([nSpks(ii,FamInd(ii,1)) > 100, nSpks(ii,FamInd(ii,2)) > 100, nSpks(ii,NovInd(ii)) > 100]) == 1
+            active_in_one = active_in_one + 1;%this is a random baseline but no other tirials 
         end
 
-        if all(nSpks(ii,wake_idx{ii}) > 75)
-            active_in_all = active_in_all + 1;
-        elseif sum([nSpks(ii,FamInd(ii)) > 75, nSpks(ii,DiffInd(ii)) > 75, nSpks(ii,NovInd(ii)) > 75]) == 1
-            active_in_one = active_in_one + 1;
-        elseif nSpks(ii,FamInd(ii,1)) > 75 && nSpks(ii,DiffInd(ii)) > 75
-            active_in_fam_and_diff = active_in_fam_and_diff + 1;
-        elseif nSpks(ii,FamInd(ii,1)) > 75 && nSpks(ii,NovInd(ii)) > 75
-            active_in_fam_and_nov = active_in_fam_and_nov + 1;
-        end
 
     end
+
+%     active_count = 0;
+%     silent_count = 0;
+%     active_in_all = 0;
+%     active_in_one = 0;
+%     active_in_fam_and_diff = 0;
+%     active_in_fam_and_nov = 0;
+%     
+%     isActiveOverall = false(length(cluster_count),1);  
+%     isActivePerEnv = false(length(cluster_count), 5);  % Initialize a matrix to check activity per environment.
+% 
+% 
+%     clust_idx = 0;
+%     
+%     % First, determine overall activity of the cell.
+%     for ii = cluster_count'
+%         clust_idx = clust_idx +1;
+%         % Identifying silent vs active cell
+%         if ~any(nSpks(ii,wake_idx{ii}) > 100) && (maxAwakeMeanRate_all(ii) < sleepMeanRate_all(ii))
+%             silent_count = silent_count + 1;
+%         else
+%             active_count = active_count + 1;
+%             isActiveOverall(clust_idx,:) = true;
+%         end
+%     end
+%     
+%     clust_idx = 0;
+%     % If a cell is active overall, check its activity per environment.
+%     for ii = cluster_count'
+%         clust_idx = clust_idx +1;
+%         if isActiveOverall(clust_idx)
+%             for env = 1:length(wake_idx{ii})
+%                 if nSpks(ii, wake_idx{ii}(env)) > 100 && spatData.meanRate(ii, wake_idx{ii}(env)) >= sleepMeanRate_all(ii)
+%                     isActivePerEnv(clust_idx, env) = true;
+%                 end
+%             end
+%     
+%             if all(isActivePerEnv(clust_idx, :))
+%                 active_in_all = active_in_all + 1;
+%             end
+%             if sum([isActivePerEnv(clust_idx, FamInd(ii)), isActivePerEnv(clust_idx, DiffInd(ii)), isActivePerEnv(clust_idx, NovInd(ii))]) == 1
+%                 active_in_one = active_in_one + 1;
+%             end
+%             if isActivePerEnv(clust_idx, FamInd(ii,1)) && isActivePerEnv(clust_idx, DiffInd(ii))
+%                 active_in_fam_and_diff = active_in_fam_and_diff + 1;
+%             end
+%             if isActivePerEnv(clust_idx, FamInd(ii,1)) && isActivePerEnv(clust_idx, NovInd(ii))
+%                 active_in_fam_and_nov = active_in_fam_and_nov + 1;
+%             end
+%         end
+%     end
+
 
     percentage_of_active_cells = active_count/length(cluster_count) *100;
     percentage_of_silent_cells = silent_count/length(cluster_count) *100;

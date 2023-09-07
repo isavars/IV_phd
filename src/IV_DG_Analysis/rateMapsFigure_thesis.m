@@ -29,9 +29,9 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', '
     trialDur = spatData.trialDur;
     
 
-    meanRate(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN; %waht is this for? 
-    burstIndex(~(env=='fam' | env=='nov'| env=='diff'  | env=='sleep')) = NaN;
-    SI_spat(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
+%     meanRate(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN; %waht is this for? 
+%     burstIndex(~(env=='fam' | env=='nov'| env=='diff'  | env=='sleep')) = NaN;
+%     SI_spat(~(env=='fam' | env=='nov' | env=='diff' | env=='sleep')) = NaN;
 
     %make indexes for sleep and wake trials 
     sleepMeanRate_all= zeros(size(spatData,1),1);
@@ -62,7 +62,7 @@ load (clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster', 'InCluster1', '
 %sleep and for that i need an adaptable trial length feature. - create
 
     for itSp = 1: length (nSpks) 
-        [~, maxSpksPos] = max(nSpks(itSp,wake_idx{itSp})); %change back to all
+        [~, maxSpksPos] = max(nSpks(itSp,:));%wake_idx{itSp})); %change back to all
         STs(itSp,:) = SpkTs(itSp, maxSpksPos);
         WFs (itSp,:) = waveforms(itSp, maxSpksPos);
         trial_duration (itSp,:) = trialDur(itSp, maxSpksPos);
@@ -98,18 +98,24 @@ trial_duration = round(trial_duration);
     cluster1 =[];
     cluster2 =[];
     for ii = 1: length(PCA2_clusters)
-        if PCA2_clusters(ii) == 1 %granule cells go here and will always be the first pages of maps 
+        if PCA2_clusters(ii) == 1 %&& ii > 211%granule cells go here and will always be the first pages of maps 
                 cluster1 = [cluster1;DG_ExCluster(ii)]; 
-        elseif PCA2_clusters(ii) == 2
+        elseif PCA2_clusters(ii) == 2 %&& ii > 211
             cluster2 = [cluster2;DG_ExCluster(ii)];
         end
     end 
 
-% %     cluster1 = low_narrow;
-%     cluster1 = InCluster2;
-%     cluster2 = InCluster2;
-    
-    clusters = {cluster2};%, cluster2};%, cluster2};
+%        cluster1 = [321; 345; 369; 416; 430; 436]; %mossy spatial post wean 
+%        cluster1 = [320;505;335;442];%;454;473;496;532;571]; %grid cells
+%      cluster1 = InCluster1;
+%      cluster2 = InCluster2;
+%     spatial_granule_prewean = [139;185;186;187;207;219;229;233];
+%     spatial_granule_postwean = [4;8;10;11;40;86;87;235;240];
+%     cluster1 = spatial_granule_postwean;
+%     granule_spatial_only_AMRS_prewean = [127; 132; 133; 135; 137; 138; 139; 143; 185; 186; 187; 207; 208; 211; 212; 215; 217; 219; 220; 225; 227; 229; 233];
+    cluster1 = [305;319;426;489];%grid cells - shorter spat data 
+    clusters = {cluster1};%, cluster2}; %, cluster2};%, cluster2};
+
 
 
 % create ranking of spatiallity in cluster and arrange from most spatial to
@@ -123,7 +129,8 @@ trial_duration = round(trial_duration);
         SpatRankCluster = sortrows(SpatRankCluster,2, 'descend');
         clusters{itC} = SpatRankCluster(:,1);
     end
-    
+
+
 
 % makes 1 figure per cluster
     
@@ -134,18 +141,41 @@ trial_duration = round(trial_duration);
     %   makes labels 
 
     textContent = strcat((extractBefore (cellID, '_')),' ','P',(extractAfter (cellID, 'P')));
-
+    textContent = strcat(spatData.dataset,' ','P',(extractAfter (cellID, 'P')) );
     fig_count = 0;
     
     for itC = 1:length(clusters)
-        for it_clu = 1: length(clusters{itC}) 
+        cluster = (clusters{itC});
+%         %remove non-spatial cells from the cluster 
+%         for itClu = 1: length(cluster) 
+%             if any(spatData.sig_SI(cluster(itClu),wake_idx{cluster(itClu)}) == 1) && any(nSpks(cluster(itClu),wake_idx{cluster(itClu)}) > 75) 
+%                 cluster(itClu) = cluster(itClu);
+%             else
+%                 cluster(itClu) = 0;
+%             end          
+%         end             
+%         cluster = cluster(cluster ~=0);
+
+        for it_clu = 1: length(cluster)         
             if it_clu == 1 || axRowCount > maxRowPerFig
                 axRowCount = 1;
                 hFig = gra_multiplot(maxRowPerFig, 7, 'figborder', [2 1 1 1]);
                 axArr = getappdata(hFig, 'axesHandles' ); % makes the axes     
-            end       
+            end 
             for it_rm = 1: 5
-                    gra_plotmap(rMap{clusters{itC}(it_clu),it_rm}, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
+                    old_name_curr_env = string(spatData.env(clusters{itC}(it_clu), it_rm));
+                    if strcmp (old_name_curr_env, 'fam')
+                        curr_env = 'Base';
+                    elseif strcmp (old_name_curr_env, 'diff')
+                        curr_env = 'Sim';
+                    elseif strcmp (old_name_curr_env, 'nov')
+                        curr_env = 'Diff';
+                    elseif strcmp (old_name_curr_env, 'sleep')
+                        curr_env = '.';   
+                    elseif isempty(old_name_curr_env)
+                        curr_env = '.';
+                    end
+                    gra_plotmap(rMap{clusters{itC}(it_clu),it_rm},curr_env, 'parent', axArr(axRowCount,it_rm)); % to put stuff in the axes. 
             end
 %             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,900,'plot', axArr(axRowCount,6));% store these somewhere instead of making them 
             spk_crosscorr(cell2mat(STs(clusters{itC}(it_clu))),'AC',0.001,0.3,trial_duration(clusters{itC}(it_clu)),'plot', axArr(axRowCount,6));% store these somewhere instead of making them 

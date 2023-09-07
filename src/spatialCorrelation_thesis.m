@@ -14,6 +14,7 @@ function spatialCorrelation_thesis(spatData,clusters)
         rMap2ndHalf = spatData.rMap2ndHalf;
         SI_spat = spatData.SI_spat;
         nSpks = spatData.nSpks;
+
                
     %gather age data from cellInfo 
     
@@ -82,7 +83,8 @@ function spatialCorrelation_thesis(spatData,clusters)
     
     
     %load clusters
-    load(clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')     
+    load(clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')  
+    
     %make clusters from PCA2_clusters keeping old naming convention for
     %convenience in running the old code. 
     mossy =[];
@@ -94,11 +96,16 @@ function spatialCorrelation_thesis(spatData,clusters)
             granule = [granule;DG_ExCluster(ii)];
         end
     end 
-    
+
     clusters =  {granule, mossy, CA3_ExCluster}; %granule; %CA3_ExCluster; % 
-    clusternames =   {'Granule Cells', 'Mossy Cells','CA3 Pyramidal Cells'}; %{'Mossy Cells'};
+    clusternames =   {'GranuleCells', 'MossyCells','CA3PyramidalCells'}; %{'Mossy Cells'};
     orange = [1, 0.5, 0];
     colors = {orange, 'g', 'r'};
+
+    %load ca3 proximal and distal clusters 
+    load('pCA3_and_dCA3_clusters_por_probe_final_data_amb_labels_2.mat', 'pCA3_cluster', 'dCA3_cluster')
+% %     clusters ={pCA3_cluster, dCA3_cluster}; 
+% %     clusternames ={'pCA3_cluster', 'dCA3_cluster'}; 
 
     for itC = 1: length(clusters)
 
@@ -137,13 +144,14 @@ function spatialCorrelation_thesis(spatData,clusters)
                 cluster_count = cluster3;
                 %remove non-spatial cells from the cluster 
                 for itClu = 1: length (cluster3) 
-                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 75) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
+                    if any(spatData.sig_SI(cluster3(itClu),wake_idx{cluster3(itClu)}) == 1) && any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 75) %
+                    %if any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters 
                         cluster3(itClu) = cluster3(itClu);
                     else
                         cluster3(itClu) = 0;
                     end          
                 end             
-                cluster3 = cluster3(cluster3 ~=0)          
+                cluster3 = cluster3(cluster3 ~=0);       
     
                 CellCount3 = length(cluster3) %this is here for a sense check when its running displays the amount of cells in the cluster that passed the spatiality test 
         
@@ -214,27 +222,42 @@ function spatialCorrelation_thesis(spatData,clusters)
                 hold off
         %         errorBars = set(gca,'xticklabels', xticks);
                 title(strcat(AgeBin,': P',num2str(ageBins(itAge,1)),' to P',num2str(ageBins(itAge,2))));
-                        ylabel('Spatial Correlation', 'FontSize', 16);
+                        ylabel('Spatial Correlation (r)', 'FontSize', 16);
     %                     xlabel('Cell Type: N');
                         ylim([0 0.6]);
     
+                %calculat peak rates and SI scores of spatial cells for
+                %stats reporting 
+
+                SI_scores = [];
+                peak_rates = [];
+                for ii = 1: length(cluster3)
+                    [~, maxSpksPos] = nanmax(spatData.nSpks(cluster3(ii),wake_idx{cluster3(ii)}));
+                    SI_spat_temp = spatData.SI_spat(cluster3(ii),maxSpksPos);
+                    SI_scores = [SI_scores; SI_spat_temp];
+                    peak_rates_temp = spatData.peakRate(cluster3(ii),maxSpksPos);                    
+                    peak_rates = [peak_rates; peak_rates_temp];
+                end
+
                 
                 %calculate and plot of number of fields for current age bin/cell type
                 [field_num, singlefield_count,multifield_count] = field_counter(rMap, peakRate, meanRate,cluster3, color1, clustername, AgeBin, cluster_count, wake_idx);
 
-
+                %make values for stats 
                 %calculate proporiton of cells with fields (spatial vs non
                 %spatial
                 cells_with_fields = sum(field_num ~= 0);
                 cells_without_fields = length(cluster_count)-sum(field_num ~= 0);
+                %field_count_all_cells = [field_num; zeros(cells_without_fields,1)];
                 %make pies for spatial vs non-spatial
                 %spatiality_values= [cells_with_fields,cells_without_fields] ;
                 spatial_cells = length(cluster3);
                 nonSpatial_cells = length(cluster_count) - spatial_cells;
                 spatiality_values=[spatial_cells,nonSpatial_cells ];
                 spatiality_lables = {'Spatial ', 'Non-spatial '};
-%                 make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
-                %make values for stats 
+                make_pies(spatiality_values,spatiality_lables, clustername, AgeBin);
+                
+                field_count_all_cells = [field_num; zeros(nonSpatial_cells,1)];
           
                 %calculate proportion of multifield vs single field 
                 percentage_of_multifield_cells = (multifield_count/ (multifield_count + singlefield_count))*100;
@@ -251,18 +274,19 @@ function spatialCorrelation_thesis(spatData,clusters)
                  %make pies for silent vs active 
                 activity_values= [percentage_of_silent_cells,percentage_of_active_cells] ;
                 activity_lables = {'Silent ', 'Active '};
-                %make_pies(activity_values,activity_lables, clustername, AgeBin);
+                make_pies(activity_values,activity_lables, clustername, AgeBin);
               
                 remapping_values = [percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov];
-                remapping_labels = {'Active in all', 'Active in one', 'Active in fam and nov1 only (global remap)', 'Active in fam and nov2 only (local remap)'};
+                remapping_labels = {'Active in all', 'Active in one', 'remaps in diff only', 'remap in sim only'};
                 % need to prep data for stats on proporitons
-                %make_pies(remapping_values,remapping_labels, clustername, AgeBin);
+                make_pies(remapping_values,remapping_labels, clustername, AgeBin);
             
                 
                 %get values for proporitons statisitics %chaneg values
                 %depending on test you want to run 
 
-                values = fieldness_values;
+                values = field_count_all_cells;
+                value_name = 'field_count_all_cells';
 
                 if itC == 1
                     if itAge == 1
@@ -316,25 +340,79 @@ function spatialCorrelation_thesis(spatData,clusters)
         between_factor_names = {'Age'};
         [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)       
         %need to do pairwise for significance tests 
+        c = multcompare(rm, 'Environment', 'ComparisonType', 'bonferroni');
+        c = multcompare(rm, 'Age', 'ComparisonType', 'bonferroni');
 
+
+        %save table for spss 
+        % Assuming spatCorrs is of size [numSubjects x numEnvironments]
+        [numSubjects, numEnvironments] = size(spatCorrs);
+        
+        % Create a table for export
+        SubjectID = repmat((1:numSubjects)', numEnvironments, 1);
+        Environment = repelem((1:numEnvironments)', numSubjects, 1);
+        
+        % Convert the matrix to long format
+        SpatialCorrelation = reshape(spatCorrs, [], 1);
+        
+        % If AgeBin1Subjects, AgeBin2Subjects are the counts of subjects in each age bin
+        Ages = [ones(AgeBin1Subjects, 1); 2* ones(AgeBin2Subjects, 1)];
+        Age = [Ages;Ages;Ages]; %there's probably a better way to do that but who cares 
+        
+        % Combine everything into a table
+        T = table(SubjectID, Age, Environment, SpatialCorrelation);
+        writetable(T, [clustername '_spatCorrs_for_SPSS.csv'])
+
+        % Here's where we convert the long format to wide format
+        spatCorrs1 = spatCorrs(:,1);
+        spatCorrs2 = spatCorrs(:,2);
+        spatCorrs3 = spatCorrs(:,3);
+        SubjectID = (1:numSubjects)';
+    
+        % Combine everything into a table
+        T_wide = table(SubjectID, Ages, spatCorrs1, spatCorrs2, spatCorrs3);
+        writetable(T_wide, [clustername '_probes_spatCorrs_transposed_for_SPSS.csv'])
 
     end
 
     
-    %table for SPSS input 
-    % Create an array to store the data
-    data = [granule_prewean; mossy_prewean; CA3_prewean; granule_postwean; mossy_postwean; CA3_postwean];
+    %table for SPSS input when comparing proportions in a glm
+%     % Create an array to store the data
+%     data = [granule_prewean; mossy_prewean; CA3_prewean; granule_postwean; mossy_postwean; CA3_postwean];
+% 
+%     % Create Age and CellType arrays
+%     Age = [repmat({'prewean'}, [3, 1]); repmat({'postwean'}, [3, 1])];
+%     CellType = {'granule'; 'mossy'; 'CA3'; 'granule'; 'mossy'; 'CA3'};
+%     
+%     % Convert data to table
+%     T = table(Age, CellType, data(:,1), data(:,2), 'VariableNames', {'Age', 'CellType', 'Spatial', 'NonSpatial'});
+%     
+%     % Display the table
+%     disp(T);
 
-    % Create Age and CellType arrays
-    Age = [repmat({'prewean'}, [3, 1]); repmat({'postwean'}, [3, 1])];
-    CellType = {'granule'; 'mossy'; 'CA3'; 'granule'; 'mossy'; 'CA3'};
-    
-    % Convert data to table
-    T = table(Age, CellType, data(:,1), data(:,2), 'VariableNames', {'Age', 'CellType', 'Spatial', 'NonSpatial'});
-    
-    % Display the table
-    disp(T);
+    %table for spss when comparing individual values per cell in an anova 
 
+%     % Create data array
+%     data = [granule_prewean; mossy_prewean; CA3_prewean; granule_postwean; mossy_postwean; CA3_postwean];
+%     
+%     % Create Age and CellType arrays
+%     Age = [repmat({'prewean'}, [length(granule_prewean) + length(mossy_prewean) + length(CA3_prewean), 1]); 
+%            repmat({'postwean'}, [length(granule_postwean) + length(mossy_postwean) + length(CA3_postwean), 1])];
+%            
+%     CellType = [repmat({'granule'}, [length(granule_prewean), 1]);
+%                 repmat({'mossy'}, [length(mossy_prewean), 1]);
+%                 repmat({'CA3'}, [length(CA3_prewean), 1]);
+%                 repmat({'granule'}, [length(granule_postwean), 1]);
+%                 repmat({'mossy'}, [length(mossy_postwean), 1]);
+%                 repmat({'CA3'}, [length(CA3_postwean), 1])];
+%     
+%     % Convert data to table
+%     T = table(Age, CellType, data, 'VariableNames', {'Age', 'CellType', value_name});
+%     
+%     % Display the table
+%     disp(T);
+% 
+%     writetable(T, [value_name '_probe_data_for_spss.csv']);
 
 
 end 
@@ -407,9 +485,12 @@ function [field_num, singlefield_count,multifield_count] = field_counter(rMap, p
             end 
         end 
         
+        spatial_cells = length(field_num);    
+        nonSpatial_cells = length(cluster_count) - spatial_cells;
+        field_count_all_cells = [field_num; zeros(nonSpatial_cells,1)]; 
         %plot field numbers 
          figure; 
-         histogram(field_num,'FaceColor', color1, 'FaceAlpha', 0.5);
+         histogram(field_count_all_cells,'FaceColor', color1, 'FaceAlpha', 0.5);
          set(gca, 'FontSize', 16) % Adjust the font size to your preference
          titlename = ['Number of Fields for ' AgeBin ': ' clustername];
 %          titlename = ['Number of Fields for: ' clustername];
@@ -428,7 +509,7 @@ function make_pies(values,lables, clustername, AgeBin)
     title(['Proportion of ' lables{1} ' vs ' lables{2} ' for: ' clustername ' (' AgeBin ')'])
 end
 
-function [active_count, silent_count, percentage_active_in_all, percentage_active_in_one, percentage_active_in_fam_and_diff, percentage_active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd )
+function [active_count, silent_count, active_in_all, active_in_one, active_in_fam_and_diff, active_in_fam_and_nov] = silent_vs_active(nSpks, wake_idx, sleep_idx, cluster_count, FamInd, DiffInd, NovInd )
     %make active cells and silent cell proporitons - could also do active
     %in different environments for this one for the remapping chapter -
     %after discussing with tom what this should look like
@@ -438,6 +519,10 @@ function [active_count, silent_count, percentage_active_in_all, percentage_activ
     active_in_one = 0;
     active_in_fam_and_diff = 0;
     active_in_fam_and_nov = 0;
+%     active_silent_mat = nan(length(cluster_count),5);
+
+    %redo this - do silent or active the new way (including the highest
+    %firing rate in wake needs to be lower than in sleep from 
 
     for ii = cluster_count'
         if any(nSpks(ii,wake_idx{ii}) > 75)
@@ -445,16 +530,26 @@ function [active_count, silent_count, percentage_active_in_all, percentage_activ
         else
             silent_count = silent_count +1;
         end
-
-        if all(nSpks(ii,wake_idx{ii}) > 75)
+        %old method
+        if all(nSpks(ii,wake_idx{ii}) > 100)
             active_in_all = active_in_all + 1;
-        elseif sum([nSpks(ii,FamInd(ii)) > 75, nSpks(ii,DiffInd(ii)) > 75, nSpks(ii,NovInd(ii)) > 75]) == 1
+        elseif sum([nSpks(ii,FamInd(ii,1)) > 100, nSpks(ii,DiffInd(ii)) > 100, nSpks(ii,NovInd(ii)) > 100]) == 1
             active_in_one = active_in_one + 1;
-        elseif nSpks(ii,FamInd(ii,1)) > 75 && nSpks(ii,DiffInd(ii)) > 75
+        elseif nSpks(ii,FamInd(ii,1)) > 100 && nSpks(ii,DiffInd(ii)) > 100
             active_in_fam_and_diff = active_in_fam_and_diff + 1;
-        elseif nSpks(ii,FamInd(ii,1)) > 75 && nSpks(ii,NovInd(ii)) > 75
+        elseif nSpks(ii,FamInd(ii,1)) > 100 && nSpks(ii,NovInd(ii)) > 100
             active_in_fam_and_nov = active_in_fam_and_nov + 1;
         end
+%         %new method needs to loop through cluster_count and the lenght of
+%         %wake_idx to add a value per envirionment then you can add the if
+%         %statements and make the same categories but with 
+%         if ~any(nSpks(ii,wake_idx{ii}) > 100) && (maxAwakeMeanRate_all(ii) < sleepMeanRate_all(ii))%changed to 100 make it a bit stricter
+%             active_silent_mat = 0 ; % add a zero for silent 
+%         else
+%             active_silent_mat = 1 ; %add 1 for is active
+%         end
+
+
 
     end
 

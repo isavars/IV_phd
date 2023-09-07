@@ -28,6 +28,7 @@ load(data, 'spatData')
 sleepMeanRate_all= zeros(size(spatData,1),1);
 sleep_idx = zeros(size(spatData,1),1);
 awakeMeanRate_all = zeros(size(spatData,1),1);
+maxAwakeMeanRate_all = zeros(size(spatData,1),1);
 wake_idx = cell(size(spatData,1),1);
 for itCl = 1: height(spatData)
     sleep_trials = strcmp(string(spatData.env(itCl,:)),'sleep');
@@ -44,6 +45,7 @@ for itCl = 1: height(spatData)
     wake_idx_temp = find(wake_trials);
     wake_idx{itCl} = wake_idx_temp;
     awakeMeanRate_all(itCl) = nanmean(spatData.meanRate(itCl,wake_idx_temp));
+    maxAwakeMeanRate_all(itCl) = nanmax(spatData.meanRate(itCl,wake_idx_temp));
     sleepMeanRate_all(itCl) = nanmean(spatData.peakRate(itCl,sleep_idx_temp));
 end 
 
@@ -114,6 +116,7 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     end 
 
     cluster3 = mossy ;%granule;%CA3_ExCluster;
+    clustername = 'mossy';
 
     %make agebins and loop through to get cluster data for each age bin
     Age =[];
@@ -149,14 +152,18 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
          famOverlap3 = nan(1,length(cluster3));
          novOverlap3 = nan(1,length(cluster3));
          diffOverlap3= nan(1,length(cluster3));
-
+         %use other if statement if you want spatial only
          for itC1 = 1: length(cluster3)
-            if any(nSpks(cluster3(itC1),wake_idx{cluster3(itC1)}) > 100) %&& any(spatData.sig_SI(cluster3(itC1),1:5) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
+            if ~any(nSpks(cluster3(itC1),wake_idx{cluster3(itC1)}) > 100) && (maxAwakeMeanRate_all(cluster3(itC1)) < sleepMeanRate_all(cluster3(itC1)))            
+            else%&& any(spatData.sig_SI(cluster3(itC1),wake_idx{cluster3(itC1)}) == 1) %&& any(spatData.peakRate(cluster3(itC1),1:5) > 0.7) %changed from spikes fired to peak rate filter - skews it towards spatial cells
+%              if any(spatData.sig_SI(cluster3(itC1),wake_idx{cluster3(itC1)}) == 1) && any(nSpks(cluster3(itC1),wake_idx{cluster3(itC1)}) > 75) && any(SI_spat(cluster3(itC1),wake_idx{cluster3(itC1)}) > 0.2) %&& any(nSpks(cluster3(itClu),wake_idx{cluster3(itClu)}) > 75)%&& any(SI_spat(cluster3(itClu),1:5) > 0.2) %|| any(nSpks(cluster3(itClu),1:5) > 100) %any(SI_spat(cluster3(itClu),1:5) > 0.5) && any(nSpks(cluster3(itClu),1:5) > 75) && any(spatData.sig(cluster3(itClu)) == 1) %these are the knierm filters                  
                 famOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),1)), meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)));
                 novOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),NovInd(cluster3(itC1))));
                 diffOverlap3(itC1) = calculateOverlap(meanRate(cluster3(itC1),FamInd(cluster3(itC1),2)), meanRate(cluster3(itC1),DiffInd(cluster3(itC1))));
             end
          end
+
+
 
         famOverlap3 = famOverlap3.';
         novOverlap3 = novOverlap3.';
@@ -246,6 +253,34 @@ load(cell_clusters, 'PCA2_clusters', 'DG_ExCluster','CA3_ExCluster')
     between_factors = [ones(AgeBin1Subjects, 1); 2 * ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];% ]; %
     between_factor_names = {'Age'};
     [tbl, rm] = simple_mixed_anova(datamat, between_factors, within_factor_names, between_factor_names)
+
+    %save table for spss 
+    % Assuming spatCorrs is of size [numSubjects x numEnvironments]
+    [numSubjects, numEnvironments] = size(rateOverlaps);
+    
+    % Create a table for export
+    SubjectID = repmat((1:numSubjects)', numEnvironments, 1);
+    Environment = repelem((1:numEnvironments)', numSubjects, 1);
+    
+    % Convert the matrix to long format
+    rateOverlap = reshape(rateOverlaps, [], 1);
+    
+    % If AgeBin1Subjects, AgeBin2Subjects are the counts of subjects in each age bin
+    Ages = [ones(AgeBin1Subjects, 1); 2* ones(AgeBin2Subjects, 1); 3 * ones(AgeBin3Subjects, 1)];
+    Age = [Ages;Ages]; %there's probably a better way to do that but who cares 
+    
+    % Combine everything into a table
+    T = table(SubjectID, Age, Environment, rateOverlap);
+    writetable(T, [clustername '_tetrodes_rateOverlaps_for_SPSS.csv'])
+
+    % Here's where we convert the long format to wide format
+    rateOverlap1 = rateOverlaps(:,1);
+    rateOverlap2 = rateOverlaps(:,2);
+    SubjectID = (1:numSubjects)';
+
+    % Combine everything into a table
+    T_wide = table(SubjectID, Ages, rateOverlap1, rateOverlap2);
+    writetable(T_wide, [clustername '_tetrodes_rateOverlaps_transposed_for_SPSS.csv'])
 
 
 end     
